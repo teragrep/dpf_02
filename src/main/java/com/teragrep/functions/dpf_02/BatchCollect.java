@@ -47,25 +47,23 @@ package com.teragrep.functions.dpf_02;
  */
 
 import org.apache.spark.sql.*;
-import org.apache.spark.sql.expressions.UserDefinedFunction;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-public final class BatchCollect {
+public final class BatchCollect extends SortOperation {
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchCollect.class);
     private Dataset<Row> savedDs = null;
     private final String sortColumn;
     private final int numberOfRows;
     private StructType inputSchema;
     private boolean sortedBySingleColumn = false;
-    private List<SortByClause> listOfSortByClauses = null;
 
     public BatchCollect(String sortColumn, int numberOfRows) {
+        super();
+
         LOGGER.info("Initialized BatchCollect based on column " + sortColumn + " and a limit of " + numberOfRows
                 + " row(s)");
         this.sortColumn = sortColumn;
@@ -73,12 +71,12 @@ public final class BatchCollect {
     }
 
     public BatchCollect(String sortColumn, int numberOfRows, List<SortByClause> listOfSortByClauses) {
+        super(listOfSortByClauses);
+
         LOGGER.info("Initialized BatchCollect based on column " + sortColumn + " and a limit of " + numberOfRows + " row(s)." +
                 " SortByClauses included: " + (listOfSortByClauses != null ? listOfSortByClauses.size() : "<null>"));
         this.sortColumn = sortColumn;
         this.numberOfRows = numberOfRows;
-
-        this.listOfSortByClauses = listOfSortByClauses;
     }
 
     /**
@@ -107,7 +105,7 @@ public final class BatchCollect {
             this.inputSchema = batchDF.schema();
         }
 
-        if (this.listOfSortByClauses == null || this.listOfSortByClauses.size() < 1) {
+        if (this.getListOfSortByClauses() == null || this.getListOfSortByClauses().size() < 1) {
             for (String field : this.inputSchema.fieldNames()) {
                 if (field.equals(this.sortColumn)) {
                     this.sortedBySingleColumn = true;
@@ -116,7 +114,7 @@ public final class BatchCollect {
             }
         }
 
-        List<Row> collected = orderDatasetByGivenColumns(batchDF).limit(numberOfRows).collectAsList();
+        List<Row> collected = orderDataset(batchDF).limit(numberOfRows).collectAsList();
         Dataset<Row> createdDsFromCollected = SparkSession.builder().getOrCreate().createDataFrame(collected, this.inputSchema);
 
         if (this.savedDs == null) {
@@ -126,7 +124,7 @@ public final class BatchCollect {
             this.savedDs = savedDs.union(createdDsFromCollected);
         }
 
-        this.savedDs = orderDatasetByGivenColumns(this.savedDs).limit(numberOfRows);
+        this.savedDs = orderDataset(this.savedDs).limit(numberOfRows);
 
     }
 
@@ -137,7 +135,7 @@ public final class BatchCollect {
             this.inputSchema = ds.schema();
         }
 
-        List<Row> collected = orderDatasetByGivenColumns(ds).limit(numberOfRows).collectAsList();
+        List<Row> collected = orderDataset(ds).limit(numberOfRows).collectAsList();
         Dataset<Row> createdDsFromCollected = SparkSession.builder().getOrCreate().createDataFrame(collected, this.inputSchema);
 
         if (this.savedDs == null) {
@@ -147,86 +145,15 @@ public final class BatchCollect {
             this.savedDs = savedDs.union(createdDsFromCollected);
         }
 
-        this.savedDs = orderDatasetByGivenColumns(this.savedDs).limit(numberOfRows);
+        this.savedDs = orderDataset(this.savedDs).limit(numberOfRows);
     }
 
-    // Performs orderBy operation on a dataset and returns the ordered one
-    private Dataset<Row> orderDatasetByGivenColumns(Dataset<Row> ds) {
-        final SparkSession ss = SparkSession.builder().getOrCreate();
-
-        if (this.listOfSortByClauses != null && this.listOfSortByClauses.size() > 0) {
-            for (SortByClause sbc : listOfSortByClauses) {
-                if (sbc.getSortAsType() == SortByClause.Type.AUTOMATIC) {
-                    SortByClause.Type autoType = detectSortByType(ds.schema().fields(), sbc.getFieldName());
-                    ds = orderDatasetBySortByClause(ss, ds, sbc, autoType);
-                }
-                else {
-                    ds = orderDatasetBySortByClause(ss, ds, sbc, null);
-                }
-            }
+    private Dataset<Row> orderDataset(Dataset<Row> ds) {
+        if (this.sortedBySingleColumn) {
+            return ds.orderBy(functions.col(this.sortColumn).desc());
+        } else {
+            return this.orderDatasetByGivenColumns(ds);
         }
-        else if (this.sortedBySingleColumn) {
-            ds = ds.orderBy(functions.col(this.sortColumn).desc());
-        }
-
-        return ds;
-    }
-
-    // orderBy based on sortByClause type and if it is descending/ascending
-    private Dataset<Row> orderDatasetBySortByClause(final SparkSession ss, final Dataset<Row> unsorted, final SortByClause sortByClause, final SortByClause.Type overrideSortType) {
-        Dataset<Row> rv = null;
-        SortByClause.Type sortByType = sortByClause.getSortAsType();
-        if (overrideSortType != null) {
-            sortByType = overrideSortType;
-        }
-
-        switch (sortByType) {
-            case DEFAULT:
-                rv = unsorted.orderBy(sortByClause.isDescending() ?
-                        functions.col(sortByClause.getFieldName()).desc() :
-                        functions.col(sortByClause.getFieldName()).asc());
-                break;
-            case STRING:
-                rv = unsorted.orderBy(sortByClause.isDescending() ?
-                        functions.col(sortByClause.getFieldName()).cast(DataTypes.StringType).desc() :
-                        functions.col(sortByClause.getFieldName()).cast(DataTypes.StringType).asc());
-                break;
-            case NUMERIC:
-                rv = unsorted.orderBy(sortByClause.isDescending() ?
-                        functions.col(sortByClause.getFieldName()).cast(DataTypes.DoubleType).desc() :
-                        functions.col(sortByClause.getFieldName()).cast(DataTypes.DoubleType).asc());
-                break;
-            case IP_ADDRESS:
-                UserDefinedFunction ipStringToIntUDF = functions.udf(new ConvertIPStringToInt(), DataTypes.LongType);
-                ss.udf().register("ip_string_to_int", ipStringToIntUDF);
-                Column sortingCol = functions.callUDF("ip_string_to_int", functions.col(sortByClause.getFieldName()));
-
-                rv = unsorted.orderBy(sortByClause.isDescending() ? sortingCol.desc() : sortingCol.asc());
-                break;
-        }
-        return rv;
-    }
-
-    // detect sorting type if auto() was used in sort
-    private SortByClause.Type detectSortByType(final StructField[] fields, final String fieldName) {
-        for (StructField field : fields) {
-            if (field.name().equals(fieldName)) {
-                switch (field.dataType().typeName()) {
-                    case "string": // ip address?
-                        return SortByClause.Type.STRING;
-                    case "long":
-                    case "integer":
-                    case "float":
-                    case "double":
-                        return SortByClause.Type.NUMERIC;
-                    case "timestamp":
-                        return SortByClause.Type.NUMERIC; // convert to unix epoch?
-                    default:
-                        return SortByClause.Type.DEFAULT;
-                }
-            }
-        }
-        return SortByClause.Type.DEFAULT;
     }
 
     // TODO: Remove
