@@ -83,7 +83,7 @@ public abstract class SortOperation {
         if (this.listOfSortByClauses != null && this.listOfSortByClauses.size() > 0) {
             for (SortByClause sbc : listOfSortByClauses) {
                 if (sbc.getSortAsType() == SortByClause.Type.AUTOMATIC) {
-                    SortByClause.Type autoType = detectSortByType(ds.schema().fields(), sbc.getFieldName());
+                    SortByClause.Type autoType = detectSortByType(ds, sbc.getFieldName());
                     ds = orderDatasetBySortByClause(ss, ds, sbc, autoType);
                 }
                 else {
@@ -131,12 +131,13 @@ public abstract class SortOperation {
     }
 
     // detect sorting type if auto() was used in sort
-    private SortByClause.Type detectSortByType(final StructField[] fields, final String fieldName) {
+    private SortByClause.Type detectSortByType(final Dataset<Row> ds, final String fieldName) {
+        StructField[] fields = ds.schema().fields();
         for (StructField field : fields) {
             if (field.name().equals(fieldName)) {
                 switch (field.dataType().typeName()) {
                     case "string": // ip address?
-                        return SortByClause.Type.STRING;
+                        return numericalStringCheck(ds, fieldName);
                     case "long":
                     case "integer":
                     case "float":
@@ -150,5 +151,24 @@ public abstract class SortOperation {
             }
         }
         return SortByClause.Type.DEFAULT;
+    }
+
+    /**
+     * Checks if a column only contains numbers even if it is labeled as a string column.
+     * @param dataset dataset to check
+     * @param fieldName name of the column
+     * @return Numeric or String SortByClause.Type
+     */
+    private SortByClause.Type numericalStringCheck(Dataset<Row> dataset, String fieldName) {
+        // Value is numerical if it is castable to Double
+        Dataset<Row> tempDataset = dataset.withColumn("isNumerical", functions.col(fieldName).cast(DataTypes.DoubleType).isNotNull());
+
+        // If the isNumerical column has even one false value, the column contains strings
+        if (tempDataset.filter(tempDataset.col("isNumerical").contains(false)).isEmpty()) {
+            // no false values found
+            return SortByClause.Type.NUMERIC;
+        } else {
+            return SortByClause.Type.STRING;
+        }
     }
 }
