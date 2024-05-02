@@ -56,6 +56,7 @@ import java.util.*;
 public final class BatchCollect extends SortOperation {
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchCollect.class);
     private Dataset<Row> savedDs = null;
+    private Dataset<Row> lastRowDs = null;
     private final String sortColumn;
     private final int numberOfRows;
     private StructType inputSchema;
@@ -87,6 +88,7 @@ public final class BatchCollect extends SortOperation {
      * @return sorted dataset
      */
     public Dataset<Row> call(Dataset<Row> df, Long id, boolean skipLimiting) {
+        Dataset<Row> rv;
         if (skipLimiting) {
             this.processAggregated(df);
         }
@@ -94,7 +96,13 @@ public final class BatchCollect extends SortOperation {
             this.collect(df, id);
         }
 
-        return this.savedDs;
+        if (this.lastRowDs != null) {
+            rv = this.savedDs.union(this.lastRowDs);
+        } else {
+            rv = this.savedDs;
+        }
+
+        return rv;
     }
 
     public void collect(Dataset<Row> batchDF, Long batchId) {
@@ -158,16 +166,27 @@ public final class BatchCollect extends SortOperation {
 
     // TODO: Remove
     public List<Row> getCollected() {
-        return this.savedDs.collectAsList();
+        return getCollectedAsDataframe().collectAsList();
     }
 
     public Dataset<Row> getCollectedAsDataframe() {
-        return this.savedDs;
+        Dataset<Row> rv;
+        if (this.lastRowDs != null) {
+            rv = this.savedDs.union(this.lastRowDs);
+        } else {
+            rv = this.savedDs;
+        }
+        return rv;
     }
 
     public void clear() {
         LOGGER.info("dpf_02 cleared");
         this.savedDs = null;
+        this.lastRowDs = null;
         this.inputSchema = null;
+    }
+
+    public void updateLastRow(Dataset<Row> lastRow) {
+        this.lastRowDs = lastRow;
     }
 }
