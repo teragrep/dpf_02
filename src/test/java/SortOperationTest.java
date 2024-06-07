@@ -79,20 +79,17 @@ public class SortOperationTest {
                     new StructField("host", DataTypes.StringType, false, new MetadataBuilder().build()),
                     new StructField("source", DataTypes.StringType, false, new MetadataBuilder().build()),
                     new StructField("partition", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("offset", DataTypes.LongType, false, new MetadataBuilder().build())
+                    new StructField("offset", DataTypes.LongType, false, new MetadataBuilder().build()),
+                    new StructField("IP", DataTypes.StringType, false, new MetadataBuilder().build())
             }
     );
 
     @Test
-    public void testMultipleSortByClauses() throws StreamingQueryException, InterruptedException {
+    public void testTwoSortByClauses() throws StreamingQueryException, InterruptedException {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
         sparkSession.sparkContext().setLogLevel("ERROR");
-
-        ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
-        MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, encoder);
 
         ArrayList<SortByClause> sortByClauses = new ArrayList<>();
         SortByClause partSbc = new SortByClause();
@@ -110,6 +107,155 @@ public class SortOperationTest {
         sortByClauses.add(offSbc);
 
         BatchCollect batchCollect = new BatchCollect("_time", 20, sortByClauses);
+
+        createData(batchCollect, sqlContext);
+
+        List<Row> partition = batchCollect.getCollectedAsDataframe().select("partition").collectAsList();
+        List<Row> offset = batchCollect.getCollectedAsDataframe().select("offset").collectAsList();
+
+        // should be first sorted by partition and then in those partitions sorted by offset
+        Assertions.assertEquals("[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]",
+                Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions.assertEquals("[0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4]",
+                Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions.assertEquals(20, partition.size());
+        Assertions.assertEquals(20, offset.size());
+    }
+
+    @Test
+    public void testTwoSortByClausesDescending() throws StreamingQueryException, InterruptedException {
+        SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
+        SQLContext sqlContext = sparkSession.sqlContext();
+
+        sparkSession.sparkContext().setLogLevel("ERROR");
+
+        ArrayList<SortByClause> sortByClauses = new ArrayList<>();
+        SortByClause partSbc = new SortByClause();
+        partSbc.setFieldName("partition");
+        partSbc.setDescending(true);
+        partSbc.setLimit(20);
+        partSbc.setSortAsType(SortByClause.Type.AUTOMATIC);
+        SortByClause offSbc = new SortByClause();
+        offSbc.setFieldName("offset");
+        offSbc.setDescending(true);
+        offSbc.setLimit(20);
+        offSbc.setSortAsType(SortByClause.Type.AUTOMATIC);
+
+        sortByClauses.add(partSbc);
+        sortByClauses.add(offSbc);
+
+        BatchCollect batchCollect = new BatchCollect("_time", 20, sortByClauses);
+
+        createData(batchCollect, sqlContext);
+
+        List<Row> partition = batchCollect.getCollectedAsDataframe().select("partition").collectAsList();
+        List<Row> offset = batchCollect.getCollectedAsDataframe().select("offset").collectAsList();
+
+        // should be first sorted by partition and then in those partitions sorted by offset
+        Assertions.assertEquals("[3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]",
+                Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions.assertEquals("[4, 3, 2, 1, 0, 4, 3, 2, 1, 0, 4, 3, 2, 1, 0, 4, 3, 2, 1, 0]",
+                Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions.assertEquals(20, partition.size());
+        Assertions.assertEquals(20, offset.size());
+    }
+
+    @Test
+    public void testTwoSortByClauseDescending_IP() throws StreamingQueryException, InterruptedException {
+        SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
+        SQLContext sqlContext = sparkSession.sqlContext();
+
+        sparkSession.sparkContext().setLogLevel("ERROR");
+
+        ArrayList<SortByClause> sortByClauses = new ArrayList<>();
+        SortByClause partSbc = new SortByClause();
+        partSbc.setFieldName("partition");
+        partSbc.setDescending(true);
+        partSbc.setLimit(20);
+        partSbc.setSortAsType(SortByClause.Type.NUMERIC);
+        SortByClause ipSbc = new SortByClause();
+        ipSbc.setFieldName("IP");
+        ipSbc.setDescending(true);
+        ipSbc.setLimit(20);
+        ipSbc.setSortAsType(SortByClause.Type.IP_ADDRESS);
+
+        sortByClauses.add(partSbc);
+        sortByClauses.add(ipSbc);
+
+        BatchCollect batchCollect = new BatchCollect("_time", 20, sortByClauses);
+
+        createData(batchCollect, sqlContext);
+
+        List<Row> partition = batchCollect.getCollectedAsDataframe().select("partition").collectAsList();
+        List<Row> ip = batchCollect.getCollectedAsDataframe().select("ip").collectAsList();
+
+        // should be first sorted by partition and then in those partitions sorted by offset
+        Assertions.assertEquals("[3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]",
+                Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions.assertEquals("[192.168.1.4, 192.168.1.3, 192.168.1.2, 192.168.1.1, 192.168.1.0, 192.168.1.4, " +
+                        "192.168.1.3, 192.168.1.2, 192.168.1.1, 192.168.1.0, 192.168.1.4, 192.168.1.3, 192.168.1.2, " +
+                        "192.168.1.1, 192.168.1.0, 192.168.1.4, 192.168.1.3, 192.168.1.2, 192.168.1.1, 192.168.1.0]",
+                Arrays.toString(ip.stream().map(r -> r.getAs(0).toString()).toArray()));
+
+        Assertions.assertEquals(20, partition.size());
+        Assertions.assertEquals(20, ip.size());
+    }
+
+    @Test
+    public void testThreeSortByClauses() throws StreamingQueryException, InterruptedException {
+        SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
+        SQLContext sqlContext = sparkSession.sqlContext();
+
+        sparkSession.sparkContext().setLogLevel("ERROR");
+
+        ArrayList<SortByClause> sortByClauses = new ArrayList<>();
+        SortByClause partSbc = new SortByClause();
+        partSbc.setFieldName("partition");
+        partSbc.setDescending(false);
+        partSbc.setLimit(20);
+        partSbc.setSortAsType(SortByClause.Type.NUMERIC);
+        SortByClause hostSbc = new SortByClause();
+        hostSbc.setFieldName("host");
+        hostSbc.setDescending(true); // host_B, host_A
+        hostSbc.setLimit(20);
+        hostSbc.setSortAsType(SortByClause.Type.STRING);
+        SortByClause offSbc = new SortByClause();
+        offSbc.setFieldName("offset");
+        offSbc.setDescending(false);
+        offSbc.setLimit(20);
+        offSbc.setSortAsType(SortByClause.Type.NUMERIC);
+
+        sortByClauses.add(partSbc);
+        sortByClauses.add(hostSbc);
+        sortByClauses.add(offSbc);
+
+        BatchCollect batchCollect = new BatchCollect("_time", 20, sortByClauses);
+
+        createData(batchCollect, sqlContext);
+
+        List<Row> partition = batchCollect.getCollectedAsDataframe().select("partition").collectAsList();
+        List<Row> offset = batchCollect.getCollectedAsDataframe().select("offset").collectAsList();
+        List<Row> host = batchCollect.getCollectedAsDataframe().select("host").collectAsList();
+
+        // should be first sorted by partition and then in those partitions sorted by offset
+        Assertions.assertEquals("[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]",
+                Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions.assertEquals("[host_B, host_B, host_A, host_A, host_A, host_B, host_B, host_A, host_A, host_A, " +
+                        "host_B, host_B, host_A, host_A, host_A, host_B, host_B, host_A, host_A, host_A]",
+                Arrays.toString(host.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions.assertEquals("[3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2]",
+                Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray()));
+
+        Assertions.assertEquals(20, partition.size());
+        Assertions.assertEquals(20, offset.size());
+        Assertions.assertEquals(20, host.size());
+    }
+
+    private void createData(BatchCollect batchCollect, SQLContext sqlContext) throws StreamingQueryException {
+        ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
+        MemoryStream<Row> rowMemoryStream =
+                new MemoryStream<>(1, sqlContext, encoder);
+
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
         StreamingQuery streamingQuery = startStream(rowDataset, batchCollect);
 
@@ -129,10 +275,11 @@ public class SortOperationTest {
                             "data data",
                             "topic",
                             "stream",
-                            "host",
+                            counter < 3 ? "host_A" : "host_B",
                             "input",
                             String.valueOf(run),
                             counter,
+                            "192.168.1." + counter,
                             1
                     )
             );
@@ -152,17 +299,6 @@ public class SortOperationTest {
                 streamingQuery.awaitTermination();
             }
         }
-
-        List<Row> partition = batchCollect.getCollectedAsDataframe().select("partition").collectAsList();
-        List<Row> offset = batchCollect.getCollectedAsDataframe().select("offset").collectAsList();
-
-        // should be first sorted by partition and then in those partitions sorted by offset
-        Assertions.assertEquals("[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]",
-                Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
-        Assertions.assertEquals("[0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4]",
-                Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray()));
-        Assertions.assertEquals(20, partition.size());
-        Assertions.assertEquals(20, offset.size());
     }
 
     private Seq<Row> makeRows(Timestamp _time,
@@ -173,6 +309,7 @@ public class SortOperationTest {
                               String source,
                               String partition,
                               Long offset,
+                              String ip,
                               long amount) {
         ArrayList<Row> rowArrayList = new ArrayList<>();
 
@@ -184,7 +321,8 @@ public class SortOperationTest {
                 host,
                 source,
                 partition,
-                offset
+                offset,
+                ip
         );
 
         while (amount > 0) {
