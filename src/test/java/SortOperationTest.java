@@ -189,7 +189,7 @@ public class SortOperationTest {
         List<Row> partition = batchCollect.getCollectedAsDataframe().select("partition").collectAsList();
         List<Row> ip = batchCollect.getCollectedAsDataframe().select("ip").collectAsList();
 
-        // should be first sorted by partition and then in those partitions sorted by offset
+        // should be first sorted by partition and then in those partitions sorted by IP
         Assertions.assertEquals("[3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]",
                 Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
         Assertions.assertEquals("[192.168.1.4, 192.168.1.3, 192.168.1.2, 192.168.1.1, 192.168.1.0, 192.168.1.4, " +
@@ -237,7 +237,7 @@ public class SortOperationTest {
         List<Row> offset = batchCollect.getCollectedAsDataframe().select("offset").collectAsList();
         List<Row> host = batchCollect.getCollectedAsDataframe().select("host").collectAsList();
 
-        // should be first sorted by partition and then in those partitions sorted by offset
+        // should be first sorted by partition and then in those partitions sorted by host and in host sorted by offset
         Assertions.assertEquals("[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]",
                 Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
         Assertions.assertEquals("[host_B, host_B, host_A, host_A, host_A, host_B, host_B, host_A, host_A, host_A, " +
