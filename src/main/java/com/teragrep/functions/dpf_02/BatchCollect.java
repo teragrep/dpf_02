@@ -63,12 +63,7 @@ public final class BatchCollect extends SortOperation {
     private boolean sortedBySingleColumn = false;
 
     public BatchCollect(String sortColumn, int numberOfRows) {
-        super();
-
-        LOGGER.info("Initialized BatchCollect based on column " + sortColumn + " and a limit of " + numberOfRows
-                + " row(s)");
-        this.sortColumn = sortColumn;
-        this.numberOfRows = numberOfRows;
+        this(sortColumn, numberOfRows, new ArrayList<>());
     }
 
     public BatchCollect(String sortColumn, int numberOfRows, List<SortByClause> listOfSortByClauses) {
