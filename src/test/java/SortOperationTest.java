@@ -85,7 +85,7 @@ public class SortOperationTest {
     );
 
     @Test
-    public void testTwoSortByClauses() throws StreamingQueryException, InterruptedException {
+    public void testTwoSortByClauses() throws StreamingQueryException {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -123,7 +123,7 @@ public class SortOperationTest {
     }
 
     @Test
-    public void testTwoSortByClausesDescending() throws StreamingQueryException, InterruptedException {
+    public void testTwoSortByClausesDescending() throws StreamingQueryException {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -161,7 +161,7 @@ public class SortOperationTest {
     }
 
     @Test
-    public void testTwoSortByClauseDescending_IP() throws StreamingQueryException, InterruptedException {
+    public void testTwoSortByClauseDescending_IP() throws StreamingQueryException {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -202,7 +202,7 @@ public class SortOperationTest {
     }
 
     @Test
-    public void testThreeSortByClauses() throws StreamingQueryException, InterruptedException {
+    public void testThreeSortByClauses() throws StreamingQueryException {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
