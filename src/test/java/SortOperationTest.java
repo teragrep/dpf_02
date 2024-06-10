@@ -52,7 +52,6 @@ import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.execution.streaming.MemoryStream;
 import org.apache.spark.sql.streaming.StreamingQuery;
-import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
@@ -85,7 +84,7 @@ public class SortOperationTest {
     );
 
     @Test
-    public void testTwoSortByClauses() throws StreamingQueryException {
+    public void testTwoSortByClauses() {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -123,7 +122,7 @@ public class SortOperationTest {
     }
 
     @Test
-    public void testTwoSortByClausesDescending() throws StreamingQueryException {
+    public void testTwoSortByClausesDescending() {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -161,7 +160,7 @@ public class SortOperationTest {
     }
 
     @Test
-    public void testTwoSortByClauseDescending_IP() throws StreamingQueryException {
+    public void testTwoSortByClauseDescending_IP() {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -202,7 +201,7 @@ public class SortOperationTest {
     }
 
     @Test
-    public void testThreeSortByClauses() throws StreamingQueryException {
+    public void testThreeSortByClauses() {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -251,7 +250,7 @@ public class SortOperationTest {
         Assertions.assertEquals(20, host.size());
     }
 
-    private void createData(BatchCollect batchCollect, SQLContext sqlContext) throws StreamingQueryException {
+    private void createData(BatchCollect batchCollect, SQLContext sqlContext) {
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
         MemoryStream<Row> rowMemoryStream =
                 new MemoryStream<>(1, sqlContext, encoder);
@@ -296,7 +295,7 @@ public class SortOperationTest {
                 // 4 runs only
                 streamingQuery.processAllAvailable();
                 streamingQuery.stop();
-                streamingQuery.awaitTermination();
+                Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
             }
         }
     }
