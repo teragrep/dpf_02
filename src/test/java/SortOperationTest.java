@@ -191,9 +191,9 @@ public class SortOperationTest {
         // should be first sorted by partition and then in those partitions sorted by IP
         Assertions.assertEquals("[3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]",
                 Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
-        Assertions.assertEquals("[192.168.1.4, 192.168.1.3, 192.168.1.2, 192.168.1.1, 192.168.1.0, 192.168.1.4, " +
-                        "192.168.1.3, 192.168.1.2, 192.168.1.1, 192.168.1.0, 192.168.1.4, 192.168.1.3, 192.168.1.2, " +
-                        "192.168.1.1, 192.168.1.0, 192.168.1.4, 192.168.1.3, 192.168.1.2, 192.168.1.1, 192.168.1.0]",
+        Assertions.assertEquals("[127.0.0.4, 127.0.0.3, 127.0.0.2, 127.0.0.1, 127.0.0.0, 127.0.0.4, " +
+                        "127.0.0.3, 127.0.0.2, 127.0.0.1, 127.0.0.0, 127.0.0.4, 127.0.0.3, 127.0.0.2, " +
+                        "127.0.0.1, 127.0.0.0, 127.0.0.4, 127.0.0.3, 127.0.0.2, 127.0.0.1, 127.0.0.0]",
                 Arrays.toString(ip.stream().map(r -> r.getAs(0).toString()).toArray()));
 
         Assertions.assertEquals(20, partition.size());
@@ -278,7 +278,7 @@ public class SortOperationTest {
                             "input",
                             String.valueOf(run),
                             counter,
-                            "192.168.1." + counter,
+                            "127.0.0." + counter,
                             1
                     )
             );
