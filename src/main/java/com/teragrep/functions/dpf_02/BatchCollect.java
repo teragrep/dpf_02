@@ -117,18 +117,18 @@ public final class BatchCollect extends SortOperation {
             }
         }
 
-        List<Row> collected = orderDataset(batchDF).limit(numberOfRows).collectAsList();
-        Dataset<Row> createdDsFromCollected = SparkSession.builder().getOrCreate().createDataFrame(collected, this.inputSchema);
+        // sort dataset and limit
+        Dataset<Row> orderedAndLimitedDs = orderDataset(batchDF).limit(numberOfRows);
 
+        // union with previous data
         if (this.savedDs == null) {
-            this.savedDs = createdDsFromCollected;
+            this.savedDs = orderedAndLimitedDs;
         }
         else {
-            this.savedDs = savedDs.union(createdDsFromCollected);
+            this.savedDs = savedDs.union(orderedAndLimitedDs);
         }
 
         this.savedDs = orderDataset(this.savedDs).limit(numberOfRows);
-
     }
 
     // Call this instead of collect to skip limiting (for aggregatesUsed=true)
