@@ -51,11 +51,11 @@ import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.execution.streaming.MemoryStream;
 import org.apache.spark.sql.streaming.StreamingQuery;
-import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
 import scala.collection.JavaConverters;
@@ -88,8 +88,9 @@ public class BatchCollectTest {
             }
     );
 
-    //@Test
-    public void testCollect() throws StreamingQueryException, InterruptedException {
+    @Test
+    @Disabled
+    public void testCollect() {
 
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
@@ -102,7 +103,7 @@ public class BatchCollectTest {
 
         BatchCollect batchCollect = new BatchCollect("_time", 100, null);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect);
+        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect, false);
 
         long run = 0;
         long counter = 1;
@@ -144,7 +145,7 @@ public class BatchCollectTest {
                 // TODO there must be a better way?
 //                streamingQuery.processAllAvailable();
                 streamingQuery.stop();
-				streamingQuery.awaitTermination();
+				Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
             }
         }
 
@@ -159,7 +160,7 @@ public class BatchCollectTest {
     }
     
     @Test
-    public void testCollectAsDataframe() throws StreamingQueryException, InterruptedException {
+    public void testCollectAsDataframe() {
     	SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -171,7 +172,7 @@ public class BatchCollectTest {
 
         BatchCollect batchCollect = new BatchCollect("_time", 100, null);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect);
+        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect, false);
 
         long run = 0;
         long counter = 0;
@@ -212,7 +213,7 @@ public class BatchCollectTest {
                 // TODO there must be a better way?
                 streamingQuery.processAllAvailable();
 				streamingQuery.stop();
-				streamingQuery.awaitTermination();
+				Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
             }
         }
         
@@ -220,6 +221,68 @@ public class BatchCollectTest {
         collectedAsDF.show(5, true);
         Assertions.assertTrue(collectedAsDF instanceof Dataset);
         //Assertions.assertEquals(200, collectedAsDF.count());
+    }
+
+    @Test
+    public void testSkipLimiting() {
+        SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
+        SQLContext sqlContext = sparkSession.sqlContext();
+
+        sparkSession.sparkContext().setLogLevel("ERROR");
+
+        ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
+        MemoryStream<Row> rowMemoryStream =
+                new MemoryStream<>(1, sqlContext, encoder);
+
+        BatchCollect batchCollect = new BatchCollect("_time", 5, new ArrayList<>());
+        Dataset<Row> rowDataset = rowMemoryStream.toDF();
+
+        // Skip limiting here
+        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect, true);
+
+        long run = 0;
+        long counter = 0;
+        while (streamingQuery.isActive()) {
+            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
+            if (run == 3) {
+                // make run 3 to be latest always
+                time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
+            } else if (run == 10) {
+                // 10 runs only
+                streamingQuery.processAllAvailable();
+                streamingQuery.stop();
+                Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
+                break;
+            }
+
+            rowMemoryStream.addData(
+                    // make rows containing counter as offset and run as partition
+                    makeRows(
+                            time,
+                            "data data",
+                            "topic",
+                            "stream",
+                            "host",
+                            "input",
+                            String.valueOf(run),
+                            counter,
+                            1
+                    )
+            );
+
+            counter++;
+
+            // create 20 events for 10 runs
+            if (counter == 20) {
+                run++;
+                counter = 0;
+            }
+        }
+
+        Dataset<Row> collectedAsDF = batchCollect.getCollectedAsDataframe();
+
+        // all the rows in the dataset, the limit of 5 rows is therefore not applied
+        Assertions.assertEquals(200, collectedAsDF.count());
     }
 
     private Seq<Row> makeRows(Timestamp _time,
@@ -255,14 +318,14 @@ public class BatchCollectTest {
     }
 
 
-    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect) {
+    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect, boolean skipLimiting) {
         return rowDataset
                 .writeStream()
                 .foreachBatch(
                         new VoidFunction2<Dataset<Row>, Long>() {
                             @Override
-                            public void call(Dataset<Row> batchDF, Long batchId) throws Exception {
-                                batchCollect.collect(batchDF, batchId);
+                            public void call(Dataset<Row> batchDF, Long batchId) {
+                                batchCollect.call(batchDF, batchId, skipLimiting);
                             }
                         }
                 )
