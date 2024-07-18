@@ -159,11 +159,6 @@ public final class BatchCollect extends SortOperation {
         }
     }
 
-    // TODO: Remove
-    public List<Row> getCollected() {
-        return getCollectedAsDataframe().collectAsList();
-    }
-
     public Dataset<Row> getCollectedAsDataframe() {
         Dataset<Row> rv;
         if (this.lastRowDs != null) {
