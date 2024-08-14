@@ -138,7 +138,7 @@ public final class BatchCollect extends SortOperation {
             this.inputSchema = ds.schema();
         }
 
-        List<Row> collected = orderDataset(ds).limit(numberOfRows).collectAsList();
+        List<Row> collected = orderDataset(ds).collectAsList();
         Dataset<Row> createdDsFromCollected = SparkSession.builder().getOrCreate().createDataFrame(collected, this.inputSchema);
 
         if (this.savedDs == null) {
@@ -148,7 +148,7 @@ public final class BatchCollect extends SortOperation {
             this.savedDs = savedDs.union(createdDsFromCollected);
         }
 
-        this.savedDs = orderDataset(this.savedDs).limit(numberOfRows);
+        this.savedDs = orderDataset(this.savedDs);
     }
 
     private Dataset<Row> orderDataset(Dataset<Row> ds) {
@@ -157,11 +157,6 @@ public final class BatchCollect extends SortOperation {
         } else {
             return this.orderDatasetByGivenColumns(ds);
         }
-    }
-
-    // TODO: Remove
-    public List<Row> getCollected() {
-        return getCollectedAsDataframe().collectAsList();
     }
 
     public Dataset<Row> getCollectedAsDataframe() {

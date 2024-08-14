@@ -51,7 +51,6 @@ import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.execution.streaming.MemoryStream;
 import org.apache.spark.sql.streaming.StreamingQuery;
-import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
@@ -66,9 +65,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.TreeMap;
 
 public class BatchCollectTest {
 
@@ -87,79 +83,9 @@ public class BatchCollectTest {
                     new StructField("offset", DataTypes.LongType, false, new MetadataBuilder().build())
             }
     );
-
-    //@Test
-    public void testCollect() throws StreamingQueryException, InterruptedException {
-
-        SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
-        SQLContext sqlContext = sparkSession.sqlContext();
-
-        sparkSession.sparkContext().setLogLevel("ERROR");
-
-        ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
-        MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, encoder);
-
-        BatchCollect batchCollect = new BatchCollect("_time", 100, null);
-        Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect);
-
-        long run = 0;
-        long counter = 1;
-        while (streamingQuery.isActive()) {
-            //System.out.println(batchCollect.getCollected().size());
-
-            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
-            if (run == 3) {
-                // make run 3 to be latest always
-                time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
-            }
-
-            rowMemoryStream.addData(
-                    // make rows containing counter as offset and run as partition
-                    makeRows(
-                            time,
-                            "data data",
-                            "topic",
-                            "stream",
-                            "host",
-                            "input",
-                            String.valueOf(run),
-                            counter,
-                            1
-                    )
-            );
-
-            // create 20 events for 10 runs
-            if (counter == 20) {
-                run++;
-                counter = 0;
-            }
-            counter++;
-            streamingQuery.processAllAvailable();
-
-            if (run == 10) {
-                // 10 runs only
-                // wait until the source feeds them all?
-                // TODO there must be a better way?
-//                streamingQuery.processAllAvailable();
-                streamingQuery.stop();
-				streamingQuery.awaitTermination();
-            }
-        }
-
-
-        LinkedList<Integer> runs = new LinkedList<>();
-        runs.add(3);
-        runs.add(6);
-        runs.add(7);
-        runs.add(8);
-        runs.add(9);
-        verifyRuns(batchCollect, runs);
-    }
     
     @Test
-    public void testCollectAsDataframe() throws StreamingQueryException, InterruptedException {
+    public void testCollectAsDataframe() {
     	SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -171,13 +97,11 @@ public class BatchCollectTest {
 
         BatchCollect batchCollect = new BatchCollect("_time", 100, null);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect);
+        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect, false);
 
         long run = 0;
         long counter = 0;
         while (streamingQuery.isActive()) {
-            //System.out.println(batchCollect.getCollected().size());
-
             Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
             if (run == 3) {
                 // make run 3 to be latest always
@@ -212,14 +136,94 @@ public class BatchCollectTest {
                 // TODO there must be a better way?
                 streamingQuery.processAllAvailable();
 				streamingQuery.stop();
-				streamingQuery.awaitTermination();
+				Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
             }
         }
-        
+
         Dataset<Row> collectedAsDF = batchCollect.getCollectedAsDataframe();
-        collectedAsDF.show(5, true);
-        Assertions.assertTrue(collectedAsDF instanceof Dataset);
-        //Assertions.assertEquals(200, collectedAsDF.count());
+        Assertions.assertEquals(100, collectedAsDF.count());
+
+        // assert that batches are correct (the newest 100 rows of data)
+        // batch number 3 is the newest in the test, others are in the order of creation
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("3")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("6")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("7")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("8")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("9")).count());
+    }
+
+    @Test
+    public void testSkipLimiting() {
+        SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
+        SQLContext sqlContext = sparkSession.sqlContext();
+
+        sparkSession.sparkContext().setLogLevel("ERROR");
+
+        ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
+        MemoryStream<Row> rowMemoryStream =
+                new MemoryStream<>(1, sqlContext, encoder);
+
+        BatchCollect batchCollect = new BatchCollect("_time", 5, new ArrayList<>());
+        Dataset<Row> rowDataset = rowMemoryStream.toDF();
+
+        // Skip limiting here
+        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect, true);
+
+        long run = 0;
+        long counter = 0;
+        while (streamingQuery.isActive()) {
+            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
+            if (run == 3) {
+                // make run 3 to be latest always
+                time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
+            } else if (run == 10) {
+                // 10 runs only
+                streamingQuery.processAllAvailable();
+                streamingQuery.stop();
+                Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
+                break;
+            }
+
+            rowMemoryStream.addData(
+                    // make rows containing counter as offset and run as partition
+                    makeRows(
+                            time,
+                            "data data",
+                            "topic",
+                            "stream",
+                            "host",
+                            "input",
+                            String.valueOf(run),
+                            counter,
+                            1
+                    )
+            );
+
+            counter++;
+
+            // create 20 events for 10 runs
+            if (counter == 20) {
+                run++;
+                counter = 0;
+            }
+        }
+
+        Dataset<Row> collectedAsDF = batchCollect.getCollectedAsDataframe();
+
+        // all the rows in the dataset, the limit of 5 rows is therefore not applied
+        Assertions.assertEquals(200, collectedAsDF.count());
+
+        // assert that batches are correct (all the rows, 10 batches)
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("0")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("1")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("2")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("3")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("4")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("5")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("6")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("7")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("8")).count());
+        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("9")).count());
     }
 
     private Seq<Row> makeRows(Timestamp _time,
@@ -255,46 +259,18 @@ public class BatchCollectTest {
     }
 
 
-    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect) {
+    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect, boolean skipLimiting) {
         return rowDataset
                 .writeStream()
                 .foreachBatch(
                         new VoidFunction2<Dataset<Row>, Long>() {
                             @Override
-                            public void call(Dataset<Row> batchDF, Long batchId) throws Exception {
-                                batchCollect.collect(batchDF, batchId);
+                            public void call(Dataset<Row> batchDF, Long batchId) {
+                                batchCollect.call(batchDF, batchId, skipLimiting);
                             }
                         }
                 )
                 .outputMode("append")
                 .start();
-    }
-
-    private void verifyRuns(BatchCollect batchCollect, LinkedList<Integer> runs) {
-        // test that 0-4 batches added data to 100 slots
-        List<Row> collectedList = batchCollect.getCollected();
-
-        TreeMap<Integer, Long> runToRow = new TreeMap<>();
-
-        int arraySize = collectedList.size();
-        while (arraySize != 0) {
-            Row row = collectedList.get(arraySize - 1);
-            int rowRun = Integer.parseInt(row.getString(6));
-
-            if(runToRow.containsKey(rowRun)) {
-                long value = runToRow.get(rowRun);
-                value++;
-                runToRow.put(rowRun, value);
-            }
-            else {
-                runToRow.put(rowRun, 1L);
-            }
-            arraySize--;
-
-        }
-
-        for(int run : runs) {
-            Assertions.assertEquals(20, runToRow.get(run), "batch "+ run +" contained other than 20 messages");
-        }
     }
 }
