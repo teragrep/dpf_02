@@ -1,4 +1,4 @@
-import com.teragrep.functions.dpf_02.RowArrayAggregator;
+import com.teragrep.functions.dpf_02.aggregate.RowArrayAggregator;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
@@ -100,7 +100,7 @@ public class RowArrayAggregatorTest {
         ds = ds.select(functions.explode(functions.col("`RowArrayAggregator(org.apache.spark.sql.Row)`.arrayOfInput")));
         ds = ds.select("col.*");
         ds.printSchema();
-        ds.show(false);
+        ds.show(10_000, false);
     }
 
 

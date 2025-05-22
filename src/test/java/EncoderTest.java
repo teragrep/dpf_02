@@ -1,5 +1,5 @@
-import com.teragrep.functions.dpf_02.RowArrayAggregator;
-import com.teragrep.functions.dpf_02.RowBuffer;
+import com.teragrep.functions.dpf_02.aggregate.RowArrayAggregator;
+import com.teragrep.functions.dpf_02.aggregate.RowBuffer;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;

@@ -1,4 +1,4 @@
-package com.teragrep.functions.dpf_02
+package com.teragrep.functions.dpf_02.aggregate
 
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.expressions.Aggregator
