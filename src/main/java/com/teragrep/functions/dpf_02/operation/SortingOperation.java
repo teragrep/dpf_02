@@ -33,6 +33,9 @@ public class SortingOperation implements RowOperation {
             sortMethod = new StringSort(columnName, order.equals(Order.DESCENDING));
         } else if (type == Type.NUMERIC) {
             sortMethod = new NumericSort(columnName, order.equals(Order.DESCENDING));
+        } else if (type == Type.IP_ADDRESS) {
+            sortMethod = new IpAddressSort(columnName, order.equals(Order.DESCENDING));
+
         } else {
             throw new UnsupportedOperationException("Unsupported sort type: " + type);
         }

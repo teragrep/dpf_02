@@ -87,6 +87,20 @@ public class SortingOperationTest {
         Assertions.assertEquals("0", ascResult.first().getAs("offset").toString());
     }
 
+    @Test
+    public void testIpAddressSort() {
+        Dataset<Row> descResult = dataset(Arrays.asList(
+                new SortingOperation("host", SortingOperation.Type.IP_ADDRESS, SortingOperation.Order.DESCENDING)
+        ));
+
+        Dataset<Row> ascResult = dataset(Arrays.asList(
+                new SortingOperation("host", SortingOperation.Type.IP_ADDRESS, SortingOperation.Order.ASCENDING)
+        ));
+
+        Assertions.assertEquals("127.0.0.20", descResult.first().getAs("host").toString());
+        Assertions.assertEquals("127.0.0.0", ascResult.first().getAs("host").toString());
+    }
+
     private Dataset<Row> dataset(List<RowOperation> rowOps) {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
@@ -118,7 +132,7 @@ public class SortingOperationTest {
                             "data data",
                             "topic",
                             "stream",
-                            "host",
+                            "127.0.0." + counter,
                             "input",
                             String.valueOf(run),
                             counter,
