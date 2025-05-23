@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -44,7 +45,7 @@ public final class EncoderTest {
                 "9999"
         );
         buf = buf.reduce(input);
-        Dataset<RowBuffer> ds = sparkSession.createDataset(Collections.singletonList(buf), new RowArrayAggregator(testSchema).bufferEncoder());
+        Dataset<RowBuffer> ds = sparkSession.createDataset(Collections.singletonList(buf), new RowArrayAggregator(testSchema, new ArrayList<>()).bufferEncoder());
         List<RowBuffer> collectedBuffers = ds.collectAsList();
         Assertions.assertEquals(1, collectedBuffers.size());
         RowBuffer collectedBuffer = collectedBuffers.get(0);

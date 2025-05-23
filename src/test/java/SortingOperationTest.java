@@ -1,4 +1,6 @@
 import com.teragrep.functions.dpf_02.aggregate.RowArrayAggregator;
+import com.teragrep.functions.dpf_02.operation.RowOperation;
+import com.teragrep.functions.dpf_02.operation.SortingOperation;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
@@ -19,8 +21,10 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-public class RowArrayAggregatorTest {
+public class SortingOperationTest {
 
     // see https://stackoverflow.com/questions/56894068/how-to-perform-unit-testing-on-spark-structured-streaming
     // see ./sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala at 2.4.5
@@ -38,8 +42,52 @@ public class RowArrayAggregatorTest {
             }
     );
 
+
     @Test
-    public void testRowArrayAggregator() {
+    public void testTimestampSort() {
+        Dataset<Row> descResult = dataset(Arrays.asList(
+                new SortingOperation("_time", SortingOperation.Type.TIMESTAMP, SortingOperation.Order.DESCENDING)
+        ));
+
+
+        Dataset<Row> ascResult = dataset(Arrays.asList(
+                new SortingOperation("_time", SortingOperation.Type.TIMESTAMP, SortingOperation.Order.ASCENDING)
+        ));
+
+        Assertions.assertEquals("2408-12-08 03:01:25.0", descResult.first().getAs("_time").toString());
+        Assertions.assertEquals("2025-01-01 00:00:00.0", ascResult.first().getAs("_time").toString());
+    }
+
+    @Test
+    public void testStringSort() {
+        Dataset<Row> descResult = dataset(Arrays.asList(
+                new SortingOperation("offset", SortingOperation.Type.STRING, SortingOperation.Order.DESCENDING)
+        ));
+
+        Dataset<Row> ascResult = dataset(Arrays.asList(
+                new SortingOperation("offset", SortingOperation.Type.STRING, SortingOperation.Order.ASCENDING)
+        ));
+
+        // lexicographical sort
+        Assertions.assertEquals("9", descResult.first().getAs("offset").toString());
+        Assertions.assertEquals("0", ascResult.first().getAs("offset").toString());
+    }
+
+    @Test
+    public void testNumericSort() {
+        Dataset<Row> descResult = dataset(Arrays.asList(
+                new SortingOperation("offset", SortingOperation.Type.NUMERIC, SortingOperation.Order.DESCENDING)
+        ));
+
+        Dataset<Row> ascResult = dataset(Arrays.asList(
+                new SortingOperation("offset", SortingOperation.Type.NUMERIC, SortingOperation.Order.ASCENDING)
+        ));
+
+        Assertions.assertEquals("20", descResult.first().getAs("offset").toString());
+        Assertions.assertEquals("0", ascResult.first().getAs("offset").toString());
+    }
+
+    private Dataset<Row> dataset(List<RowOperation> rowOps) {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -49,16 +97,15 @@ public class RowArrayAggregatorTest {
         MemoryStream<Row> rowMemoryStream =
                 new MemoryStream<>(1, sqlContext, encoder);
 
-        //BatchCollect batchCollect = new BatchCollect("_time", 100, null);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        RowArrayAggregator aggregator = new RowArrayAggregator(testSchema, new ArrayList<>());
+        RowArrayAggregator aggregator = new RowArrayAggregator(testSchema, rowOps);
         rowDataset = rowDataset.agg(aggregator.toColumn());
         StreamingQuery streamingQuery = startStream(rowDataset);
 
         long run = 0;
         long counter = 0;
         while (streamingQuery.isActive()) {
-            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
+            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(1735689600), ZoneOffset.UTC));
             if (run == 3) {
                 // make run 3 to be latest always
                 time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
@@ -99,8 +146,7 @@ public class RowArrayAggregatorTest {
         Dataset<Row> ds = sqlContext.sql("SELECT * FROM AggTest");
         ds = ds.select(functions.explode(functions.col("`RowArrayAggregator(org.apache.spark.sql.Row)`.arrayOfInput")));
         ds = ds.select("col.*");
-        ds.printSchema();
-        ds.show(10_000, false);
+        return ds;
     }
 
 

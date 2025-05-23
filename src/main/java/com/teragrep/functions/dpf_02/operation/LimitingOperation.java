@@ -11,8 +11,16 @@ public class LimitingOperation implements RowOperation {
         this.count = count;
     }
 
+    private void validate() {
+        if (count < 0) {
+            throw new IllegalArgumentException("Limit must be greater than or equal to zero, was: " + count);
+        }
+    }
+
     @Override
     public List<Row> apply(final List<Row> rows) {
+        validate();
         return rows.subList(0, Math.min(count, rows.size()));
     }
+
 }

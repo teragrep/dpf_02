@@ -6,7 +6,10 @@ import java.io.Serializable;
 import java.sql.Timestamp;
 import java.util.Comparator;
 
-public class TimestampSort implements Comparator<Row>, Serializable {
+/**
+ * Timestamp-based sort.
+ */
+public final class TimestampSort implements Comparator<Row>, Serializable {
     private final String columnName;
     private final boolean descending;
 

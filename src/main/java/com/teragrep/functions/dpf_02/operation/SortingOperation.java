@@ -29,6 +29,10 @@ public class SortingOperation implements RowOperation {
         final Comparator<Row> sortMethod;
         if (type == Type.TIMESTAMP) {
             sortMethod = new TimestampSort(columnName, order.equals(Order.DESCENDING));
+        } else if (type == Type.STRING) {
+            sortMethod = new StringSort(columnName, order.equals(Order.DESCENDING));
+        } else if (type == Type.NUMERIC) {
+            sortMethod = new NumericSort(columnName, order.equals(Order.DESCENDING));
         } else {
             throw new UnsupportedOperationException("Unsupported sort type: " + type);
         }
