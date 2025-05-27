@@ -99,8 +99,8 @@ public class RowArrayAggregatorTest {
         Dataset<Row> ds = sqlContext.sql("SELECT * FROM AggTest");
         ds = ds.select(functions.explode(functions.col("`RowArrayAggregator(org.apache.spark.sql.Row)`.arrayOfInput")));
         ds = ds.select("col.*");
-        ds.printSchema();
-        ds.show(10_000, false);
+
+        Assertions.assertEquals(201, ds.count());
     }
 
 

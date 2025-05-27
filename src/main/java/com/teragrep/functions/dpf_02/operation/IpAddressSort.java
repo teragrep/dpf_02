@@ -1,16 +1,19 @@
 package com.teragrep.functions.dpf_02.operation;
 
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
 
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Comparator;
+import java.util.List;
 
 /**
  * Lexicographical string sort.
  */
-public final class IpAddressSort implements Comparator<Row>, Serializable {
+public final class IpAddressSort implements SortMethod, Serializable {
     private final String columnName;
     private final boolean descending;
 
@@ -19,17 +22,18 @@ public final class IpAddressSort implements Comparator<Row>, Serializable {
         this.descending = descending;
     }
 
-    @Override
-    public int compare(final Row r0, final Row r1) {
-        final long l0 = addrToLong(r0.getAs(r0.fieldIndex(columnName)));
-        final long l1 = addrToLong(r1.getAs(r1.fieldIndex(columnName)));
-        int comp = Long.compare(l0, l1);
+    private Comparator<Row> comparator() {
+        return (r0, r1) -> {
+            final long l0 = addrToLong(r0.getAs(r0.fieldIndex(columnName)));
+            final long l1 = addrToLong(r1.getAs(r1.fieldIndex(columnName)));
+            int comp = Long.compare(l0, l1);
 
-        if (descending) {
-            comp = -1 * comp;
-        }
+            if (descending) {
+                comp = -1 * comp;
+            }
 
-        return comp;
+            return comp;
+        };
     }
 
     private long addrToLong(String ip) {
@@ -48,5 +52,11 @@ public final class IpAddressSort implements Comparator<Row>, Serializable {
         }
 
         return ip_addr1;
+    }
+
+    @Override
+    public List<Row> sort(final List<Row> rows) {
+        rows.sort(comparator());
+        return rows;
     }
 }

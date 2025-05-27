@@ -101,6 +101,48 @@ public class SortingOperationTest {
         Assertions.assertEquals("127.0.0.0", ascResult.first().getAs("host").toString());
     }
 
+    @Test
+    public void testAutoSortWithNumericData() {
+        Dataset<Row> descResult = dataset(Arrays.asList(
+                new SortingOperation("offset", SortingOperation.Type.AUTOMATIC, SortingOperation.Order.DESCENDING)
+        ));
+
+        Dataset<Row> ascResult = dataset(Arrays.asList(
+                new SortingOperation("offset", SortingOperation.Type.AUTOMATIC, SortingOperation.Order.ASCENDING)
+        ));
+
+        Assertions.assertEquals("20", descResult.first().getAs("offset").toString());
+        Assertions.assertEquals("0", ascResult.first().getAs("offset").toString());
+    }
+
+    @Test
+    public void testAutoSortWithTimeData() {
+        Dataset<Row> descResult = dataset(Arrays.asList(
+                new SortingOperation("_time", SortingOperation.Type.AUTOMATIC, SortingOperation.Order.DESCENDING)
+        ));
+
+        Dataset<Row> ascResult = dataset(Arrays.asList(
+                new SortingOperation("_time", SortingOperation.Type.AUTOMATIC, SortingOperation.Order.ASCENDING)
+        ));
+
+        Assertions.assertEquals("2408-12-08 03:01:25.0", descResult.first().getAs("_time").toString());
+        Assertions.assertEquals("2025-01-01 00:00:00.0", ascResult.first().getAs("_time").toString());
+    }
+
+    @Test
+    public void testAutoSortWithStringData() {
+        Dataset<Row> descResult = dataset(Arrays.asList(
+                new SortingOperation("_raw", SortingOperation.Type.AUTOMATIC, SortingOperation.Order.DESCENDING)
+        ));
+
+        Dataset<Row> ascResult = dataset(Arrays.asList(
+                new SortingOperation("_raw", SortingOperation.Type.AUTOMATIC, SortingOperation.Order.ASCENDING)
+        ));
+
+        Assertions.assertEquals("u", descResult.first().getAs("_raw").toString());
+        Assertions.assertEquals("a", ascResult.first().getAs("_raw").toString());
+    }
+
     private Dataset<Row> dataset(List<RowOperation> rowOps) {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
@@ -129,7 +171,7 @@ public class SortingOperationTest {
                     // make rows containing counter as offset and run as partition
                     makeRows(
                             time,
-                            "data data",
+                            String.valueOf((char)(97 + Long.valueOf(counter).intValue())), //creates letters starting from 'a'
                             "topic",
                             "stream",
                             "127.0.0." + counter,
