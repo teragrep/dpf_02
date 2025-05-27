@@ -1,6 +1,6 @@
 import com.teragrep.functions.dpf_02.aggregate.RowArrayAggregator;
 import com.teragrep.functions.dpf_02.operation.RowOperation;
-import com.teragrep.functions.dpf_02.operation.SortingOperation;
+import com.teragrep.functions.dpf_02.operation.sort.SortingOperation;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;

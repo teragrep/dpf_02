@@ -1,5 +1,6 @@
-package com.teragrep.functions.dpf_02.operation;
+package com.teragrep.functions.dpf_02.operation.sort;
 
+import com.teragrep.functions.dpf_02.operation.RowOperation;
 import org.apache.spark.sql.Row;
 
 import java.util.List;

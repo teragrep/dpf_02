@@ -1,5 +1,5 @@
 import com.teragrep.functions.dpf_02.aggregate.RowArrayAggregator;
-import com.teragrep.functions.dpf_02.operation.LimitingOperation;
+import com.teragrep.functions.dpf_02.operation.limit.LimitingOperation;
 import com.teragrep.functions.dpf_02.operation.RowOperation;
 import org.apache.spark.SparkException;
 import org.apache.spark.sql.*;

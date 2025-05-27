@@ -1,8 +1,6 @@
-package com.teragrep.functions.dpf_02.operation;
+package com.teragrep.functions.dpf_02.operation.sort;
 
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
 
 import java.io.Serializable;
 import java.net.InetAddress;

@@ -17,7 +17,7 @@ public final class RowBuffer implements Serializable {
         this(new ArrayList<>(), new ArrayList<>());
     }
 
-    public RowBuffer(List<RowOperation> rowOps) {
+    public RowBuffer(final List<RowOperation> rowOps) {
         this(new ArrayList<>(), rowOps);
     }
 
