@@ -43,6 +43,7 @@
  * Teragrep, the applicable Commercial License may apply to this file if you as
  * a licensee so wish it.
  */
+import com.teragrep.functions.dpf_02.aggregate.BufferTrait;
 import com.teragrep.functions.dpf_02.aggregate.RowArrayAggregator;
 import com.teragrep.functions.dpf_02.aggregate.RowBuffer;
 import org.apache.spark.sql.Dataset;
@@ -90,10 +91,10 @@ public final class EncoderTest {
                 "9999"
         );
         buf = buf.reduce(input);
-        Dataset<RowBuffer> ds = sparkSession.createDataset(Collections.singletonList(buf), new RowArrayAggregator(testSchema, new ArrayList<>()).bufferEncoder());
-        List<RowBuffer> collectedBuffers = ds.collectAsList();
+        Dataset<BufferTrait> ds = sparkSession.createDataset(Collections.singletonList(buf), new RowArrayAggregator(new RowBuffer(),testSchema).bufferEncoder());
+        List<BufferTrait> collectedBuffers = ds.collectAsList();
         Assertions.assertEquals(1, collectedBuffers.size());
-        RowBuffer collectedBuffer = collectedBuffers.get(0);
+        BufferTrait collectedBuffer = collectedBuffers.get(0);
         List<Row> rowsFromCollectedBuffer = collectedBuffer.toList();
         Assertions.assertEquals(1, rowsFromCollectedBuffer.size());
         // Should be the same as input row

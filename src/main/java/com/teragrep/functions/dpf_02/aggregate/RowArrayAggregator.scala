@@ -44,7 +44,6 @@ package com.teragrep.functions.dpf_02.aggregate
  * Teragrep, the applicable Commercial License may apply to this file if you as
  * a licensee so wish it.
  */
-import com.teragrep.functions.dpf_02.operation.RowOperation
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.expressions.Aggregator
 import org.apache.spark.sql.types.{ArrayType, DataTypes, StructField, StructType}
@@ -52,26 +51,26 @@ import org.apache.spark.sql.{Encoder, Encoders, Row}
 
 import scala.reflect.classTag
 
-class RowArrayAggregator(schema: StructType, rowOps: java.util.List[RowOperation]) extends Aggregator[Row, RowBuffer, Row] with Serializable {
+class RowArrayAggregator(buffer: BufferTrait, schema: StructType) extends Aggregator[Row, BufferTrait, Row] with Serializable {
 
   private val arrSchema: ArrayType = DataTypes.createArrayType(schema)
 
   private val schemaArrs: StructType = StructType(Seq(StructField("arrayOfInput", arrSchema, nullable = false)))
 
-  override def zero: RowBuffer = new RowBuffer(rowOps): RowBuffer
+  override def zero: BufferTrait = buffer.zero : BufferTrait
 
-  override def reduce(buf: RowBuffer, input: Row): RowBuffer = {
+  override def reduce(buf: BufferTrait, input: Row): BufferTrait = {
     buf.reduce(input)
   }
 
-  override def merge(b1: RowBuffer, b2: RowBuffer): RowBuffer = {
+  override def merge(b1: BufferTrait, b2: BufferTrait): BufferTrait = {
     b1.merge(b2)
   }
 
-  override def finish(reduction: RowBuffer): Row = {
+  override def finish(reduction: BufferTrait): Row = {
     reduction.finish()
   }
 
-  override def bufferEncoder: Encoder[RowBuffer] = Encoders.kryo(classTag[RowBuffer])
+  override def bufferEncoder: Encoder[BufferTrait] = Encoders.kryo(classTag[BufferTrait])
   override def outputEncoder: Encoder[Row] = RowEncoder.apply(schemaArrs).resolveAndBind()
 }

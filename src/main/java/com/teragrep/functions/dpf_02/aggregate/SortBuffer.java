@@ -1,4 +1,4 @@
-package com.teragrep.functions.dpf_02.operation;
+package com.teragrep.functions.dpf_02.aggregate;
 /*
  * Teragrep Batch Collect DPF-02
  * Copyright (C) 2019, 2020, 2021, 2022  Suomen Kanuuna Oy
@@ -44,11 +44,73 @@ package com.teragrep.functions.dpf_02.operation;
  * Teragrep, the applicable Commercial License may apply to this file if you as
  * a licensee so wish it.
  */
+import com.teragrep.functions.dpf_02.operation.sort.*;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import scala.collection.JavaConverters;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 
-public interface RowOperation extends Function<List<Row>, List<Row>>, Serializable {
+public final class SortBuffer implements Serializable, BufferTrait {
+    private final List<Row> rows;
+    private final List<SortMethod> sortMethods;
+
+    public SortBuffer() {
+        this(new ArrayList<>());
+    }
+
+    public SortBuffer(final List<SortMethod> sortMethods) {
+        this(new ArrayList<>(), sortMethods);
+    }
+
+    public SortBuffer(final List<Row> rows, final List<SortMethod> sortMethods) {
+        this.rows = rows;
+        this.sortMethods = sortMethods;
+    }
+
+    @Override
+    public BufferTrait zero() {
+        return new SortBuffer(new ArrayList<>(), sortMethods);
+    }
+
+    public SortBuffer reduce(final Row input) {
+        List<Row> newRows = new ArrayList<>(rows);
+        newRows.add(input);
+
+        return new SortBuffer(newRows, sortMethods);
+    }
+
+    @Override
+    public BufferTrait merge(final BufferTrait another) {
+        List<Row> merged = another.toList();
+        merged.addAll(rows);
+
+        for (final SortMethod method : sortMethods) {
+            merged = method.sort(merged);
+        }
+
+        return new SortBuffer(merged, sortMethods);
+    }
+
+    @Override
+    public Row finish() {
+        List<Row> rv = rows;
+        for (final SortMethod method : sortMethods) {
+            rv = method.sort(rv);
+        }
+
+        return RowFactory.create(JavaConverters.asScalaBuffer(rv).toSeq());
+    }
+
+    @Override
+    public List<Row> toList() {
+        return new ArrayList<>(rows);
+    }
+
+    @Override
+    public int count() {
+        return rows.size();
+    }
 }

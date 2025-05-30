@@ -43,7 +43,11 @@
  * Teragrep, the applicable Commercial License may apply to this file if you as
  * a licensee so wish it.
  */
+import com.teragrep.functions.dpf_02.aggregate.LimitBuffer;
 import com.teragrep.functions.dpf_02.aggregate.RowArrayAggregator;
+import com.teragrep.functions.dpf_02.aggregate.RowBuffer;
+import com.teragrep.functions.dpf_02.aggregate.SortBuffer;
+import com.teragrep.functions.dpf_02.operation.sort.TimestampSort;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
@@ -64,6 +68,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class RowArrayAggregatorTest {
 
@@ -84,7 +89,37 @@ public class RowArrayAggregatorTest {
     );
 
     @Test
-    public void testRowArrayAggregator() {
+    void testRowBuffer() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new RowBuffer(), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        Assertions.assertEquals(201, ds.count());
+    }
+
+    @Test
+    void testLimitBuffer() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new LimitBuffer(5), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        Assertions.assertEquals(5, ds.count());
+    }
+
+    @Test
+    void testSortBufferDescendingTime() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new SortBuffer(Arrays.asList(new TimestampSort())), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        Assertions.assertEquals("2408-12-08 03:01:25.0", ds.first().getTimestamp(0).toString());
+        Assertions.assertEquals(201, ds.count());
+    }
+
+    @Test
+    void testSortBufferAscendingTime() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new SortBuffer(Arrays.asList(new TimestampSort(false))), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        ds.show(false);
+        Assertions.assertEquals("2025-01-01 00:00:00.0", ds.first().getTimestamp(0).toString());
+        Assertions.assertEquals(201, ds.count());
+    }
+
+    private Dataset<Row> dataset(Column aggColumn) {
         SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
@@ -94,16 +129,14 @@ public class RowArrayAggregatorTest {
         MemoryStream<Row> rowMemoryStream =
                 new MemoryStream<>(1, sqlContext, encoder);
 
-        //BatchCollect batchCollect = new BatchCollect("_time", 100, null);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        RowArrayAggregator aggregator = new RowArrayAggregator(testSchema, new ArrayList<>());
-        rowDataset = rowDataset.agg(aggregator.toColumn());
+        rowDataset = rowDataset.agg(aggColumn);
         StreamingQuery streamingQuery = startStream(rowDataset);
 
         long run = 0;
         long counter = 0;
         while (streamingQuery.isActive()) {
-            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
+            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(1735689600L+counter), ZoneOffset.UTC));
             if (run == 3) {
                 // make run 3 to be latest always
                 time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
@@ -144,8 +177,7 @@ public class RowArrayAggregatorTest {
         Dataset<Row> ds = sqlContext.sql("SELECT * FROM AggTest");
         ds = ds.select(functions.explode(functions.col("`RowArrayAggregator(org.apache.spark.sql.Row)`.arrayOfInput")));
         ds = ds.select("col.*");
-
-        Assertions.assertEquals(201, ds.count());
+        return ds;
     }
 
 

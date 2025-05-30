@@ -1,4 +1,4 @@
-package com.teragrep.functions.dpf_02.operation.limit;
+package com.teragrep.functions.dpf_02.aggregate;
 /*
  * Teragrep Batch Collect DPF-02
  * Copyright (C) 2019, 2020, 2021, 2022  Suomen Kanuuna Oy
@@ -44,28 +44,79 @@ package com.teragrep.functions.dpf_02.operation.limit;
  * Teragrep, the applicable Commercial License may apply to this file if you as
  * a licensee so wish it.
  */
-import com.teragrep.functions.dpf_02.operation.RowOperation;
+import com.teragrep.functions.dpf_02.operation.limit.LimitedList;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import scala.collection.JavaConverters;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
-public class LimitingOperation implements RowOperation {
+public final class LimitBuffer implements Serializable, BufferTrait {
+    private final List<Row> rows;
     private final int count;
+    private final int limit;
 
-    public LimitingOperation(final int count) {
-        this.count = count;
+    public LimitBuffer(final int limit) {
+        this(new ArrayList<>(), 0, limit);
     }
 
-    private void validate() {
-        if (count < 0) {
-            throw new IllegalArgumentException("Limit must be greater than or equal to zero, was: " + count);
-        }
+    public LimitBuffer(final List<Row> rows, final int count, final int limit) {
+        this.rows = rows;
+        this.count = count;
+        this.limit = limit;
     }
 
     @Override
-    public List<Row> apply(final List<Row> rows) {
-        validate();
-        return rows.subList(0, Math.min(count, rows.size()));
+    public BufferTrait zero() {
+        return new LimitBuffer(new ArrayList<>(), 0, limit);
     }
 
+    public LimitBuffer reduce(final Row input) {
+        List<Row> newRows = new ArrayList<>(rows);
+        newRows.add(input);
+
+        final int newCount = count + 1;
+
+        if (newCount > limit) {
+            newRows = new LimitedList<>(limit, newRows).toList();
+        }
+
+        return new LimitBuffer(newRows, newCount, limit);
+    }
+
+    @Override
+    public BufferTrait merge(final BufferTrait another) {
+        List<Row> merged = another.toList();
+        merged.addAll(rows);
+
+        int newCount = count + another.count();
+
+        if (newCount > limit) {
+            merged = new LimitedList<>(limit, merged).toList();
+            newCount = limit;
+        }
+
+        return new LimitBuffer(merged, newCount, limit);
+    }
+
+    @Override
+    public Row finish() {
+        List<Row> rv = rows;
+        if (count > limit) {
+            rv = new LimitedList<>(limit, rv).toList();
+        }
+        return RowFactory.create(JavaConverters.asScalaBuffer(rv).toSeq());
+    }
+
+    @Override
+    public List<Row> toList() {
+        return new ArrayList<>(rows);
+    }
+
+    @Override
+    public int count() {
+        return count;
+    }
 }
