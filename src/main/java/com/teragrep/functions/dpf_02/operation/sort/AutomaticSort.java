@@ -48,9 +48,10 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.DataType;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class AutomaticSort implements SortMethod {
+public class AutomaticSort implements SortMethod, Serializable {
     private final String columnName;
     private final boolean descending;
 

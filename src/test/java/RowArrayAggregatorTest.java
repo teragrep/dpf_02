@@ -47,6 +47,7 @@ import com.teragrep.functions.dpf_02.aggregate.LimitBuffer;
 import com.teragrep.functions.dpf_02.aggregate.RowArrayAggregator;
 import com.teragrep.functions.dpf_02.aggregate.RowBuffer;
 import com.teragrep.functions.dpf_02.aggregate.SortBuffer;
+import com.teragrep.functions.dpf_02.operation.sort.AutomaticSort;
 import com.teragrep.functions.dpf_02.operation.sort.TimestampSort;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
@@ -69,6 +70,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class RowArrayAggregatorTest {
 
@@ -114,8 +116,18 @@ public class RowArrayAggregatorTest {
     void testSortBufferAscendingTime() {
         RowArrayAggregator aggregator = new RowArrayAggregator(new SortBuffer(Arrays.asList(new TimestampSort(false))), testSchema);
         Dataset<Row> ds = dataset(aggregator.toColumn());
-        ds.show(false);
         Assertions.assertEquals("2025-01-01 00:00:00.0", ds.first().getTimestamp(0).toString());
+        Assertions.assertEquals(201, ds.count());
+    }
+
+    @Test
+    void testSortBufferAuto() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new SortBuffer(Arrays.asList(new AutomaticSort("offset", false))), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        List<Row> collected = ds.collectAsList();
+        Assertions.assertEquals(201, collected.size());
+        Assertions.assertEquals("0", collected.get(0).getAs("offset").toString());
+        Assertions.assertEquals("20", collected.get(collected.size() - 1).getAs("offset").toString());
         Assertions.assertEquals(201, ds.count());
     }
 
