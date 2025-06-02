@@ -110,6 +110,11 @@ public class RowArrayAggregatorTest {
         Dataset<Row> ds = dataset(aggregator.toColumn());
         Assertions.assertEquals("2408-12-08 03:01:25.0", ds.first().getTimestamp(0).toString());
         Assertions.assertEquals(201, ds.count());
+        List<Row> collected = ds.collectAsList();
+        Assertions.assertEquals(201, collected.size());
+        Assertions.assertEquals("2408-12-08 03:01:25.0", collected.get(0).getTimestamp(0).toString());
+        Assertions.assertEquals("2025-01-01 00:00:00.0", collected.get(collected.size() - 1).getTimestamp(0).toString());
+
     }
 
     @Test
@@ -118,6 +123,11 @@ public class RowArrayAggregatorTest {
         Dataset<Row> ds = dataset(aggregator.toColumn());
         Assertions.assertEquals("2025-01-01 00:00:00.0", ds.first().getTimestamp(0).toString());
         Assertions.assertEquals(201, ds.count());
+        List<Row> collected = ds.collectAsList();
+        Assertions.assertEquals(201, collected.size());
+        Assertions.assertEquals("2025-01-01 00:00:00.0", collected.get(0).getTimestamp(0).toString());
+        Assertions.assertEquals("2408-12-08 03:01:25.0", collected.get(collected.size() - 1).getTimestamp(0).toString());
+
     }
 
     @Test
