@@ -53,7 +53,7 @@ import scala.reflect.classTag
 
 class RowArrayAggregator(buffer: BufferTrait, schema: StructType) extends Aggregator[Row, BufferTrait, Row] with Serializable {
 
-  private val arrSchema: ArrayType = DataTypes.createArrayType(schema)
+  private val arrSchema: ArrayType = DataTypes.createArrayType(schema, false)
 
   private val schemaArrs: StructType = StructType(Seq(StructField("arrayOfInput", arrSchema, nullable = false)))
 

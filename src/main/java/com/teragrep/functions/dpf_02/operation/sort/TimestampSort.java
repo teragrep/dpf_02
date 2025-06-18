@@ -45,6 +45,8 @@ package com.teragrep.functions.dpf_02.operation.sort;
  * a licensee so wish it.
  */
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
@@ -75,7 +77,22 @@ public final class TimestampSort implements SortMethod, Serializable {
         return (r0, r1) -> {
             final Timestamp t0 = r0.getTimestamp(r0.fieldIndex(columnName));
             final Timestamp t1 = r1.getTimestamp(r1.fieldIndex(columnName));
-            int comp = t0.compareTo(t1);
+
+
+            int comp;
+
+            if (t0 != null && t1 != null) {
+                comp = t0.compareTo(t1);
+            }
+            else if (t0 == null && t1 == null) {
+                comp = 0;
+            }
+            else if (t0 == null) {
+                comp = -1;
+            }
+            else {
+                comp = 1;
+            }
 
             if (descending) {
                 comp = -1 * comp;
@@ -87,6 +104,22 @@ public final class TimestampSort implements SortMethod, Serializable {
 
     @Override
     public List<Row> sort(final List<Row> rows) {
+        if (!rows.isEmpty()) {
+            final Row first = rows.get(0);
+
+            final int index;
+            try {
+                index = first.fieldIndex(columnName);
+            } catch (IllegalArgumentException e) {
+                return rows;
+            }
+
+            final StructField sf = first.schema().apply(index);
+            if (!sf.dataType().sameType(DataTypes.TimestampType)) {
+                return rows;
+            }
+        }
+
         rows.sort(comparator());
         return rows;
     }
