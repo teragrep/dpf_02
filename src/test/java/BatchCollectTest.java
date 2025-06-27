@@ -57,6 +57,7 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
+import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
@@ -93,7 +94,7 @@ public class BatchCollectTest {
 
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
         MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, encoder);
+                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         BatchCollect batchCollect = new BatchCollect("_time", 100, null);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
@@ -135,7 +136,7 @@ public class BatchCollectTest {
                 // wait until the source feeds them all?
                 // TODO there must be a better way?
                 streamingQuery.processAllAvailable();
-				streamingQuery.stop();
+				Assertions.assertDoesNotThrow(() -> streamingQuery.stop());
 				Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
             }
         }
@@ -161,7 +162,7 @@ public class BatchCollectTest {
 
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
         MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, encoder);
+                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         BatchCollect batchCollect = new BatchCollect("_time", 5, new ArrayList<>());
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
@@ -179,7 +180,7 @@ public class BatchCollectTest {
             } else if (run == 10) {
                 // 10 runs only
                 streamingQuery.processAllAvailable();
-                streamingQuery.stop();
+                Assertions.assertDoesNotThrow(() -> streamingQuery.stop());
                 Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
                 break;
             }
@@ -260,17 +261,19 @@ public class BatchCollectTest {
 
 
     private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect, boolean skipLimiting) {
-        return rowDataset
-                .writeStream()
-                .foreachBatch(
-                        new VoidFunction2<Dataset<Row>, Long>() {
-                            @Override
-                            public void call(Dataset<Row> batchDF, Long batchId) {
-                                batchCollect.call(batchDF, batchId, skipLimiting);
+        return Assertions.assertDoesNotThrow(() -> {
+            return rowDataset
+                    .writeStream()
+                    .foreachBatch(
+                            new VoidFunction2<Dataset<Row>, Long>() {
+                                @Override
+                                public void call(Dataset<Row> batchDF, Long batchId) {
+                                    batchCollect.call(batchDF, batchId, skipLimiting);
+                                }
                             }
-                        }
-                )
-                .outputMode("append")
-                .start();
+                    )
+                    .outputMode("append")
+                    .start();
+        });
     }
 }

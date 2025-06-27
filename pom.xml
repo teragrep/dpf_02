@@ -47,7 +47,7 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.12</artifactId>
-      <version>2.4.5</version>
+      <version>3.4.0</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -59,7 +59,7 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_2.12</artifactId>
-      <version>2.4.5</version>
+      <version>3.4.0</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -144,6 +144,7 @@
           </execution>
         </executions>
       </plugin>
+      <!-- FIXME: Scala trait breaks this
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
@@ -159,7 +160,7 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>
+      </plugin> -->
       <plugin>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>

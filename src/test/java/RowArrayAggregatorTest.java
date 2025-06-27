@@ -61,6 +61,7 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
@@ -149,7 +150,7 @@ public class RowArrayAggregatorTest {
 
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
         MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, encoder);
+                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
         rowDataset = rowDataset.agg(aggColumn);
@@ -191,7 +192,7 @@ public class RowArrayAggregatorTest {
                 // wait until the source feeds them all?
                 // TODO there must be a better way?
                 streamingQuery.processAllAvailable();
-                streamingQuery.stop();
+                Assertions.assertDoesNotThrow(() -> streamingQuery.stop());
                 Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
             }
         }
@@ -237,11 +238,13 @@ public class RowArrayAggregatorTest {
 
 
     private StreamingQuery startStream(Dataset<Row> rowDataset) {
-        return rowDataset
-                .writeStream()
-                .queryName("AggTest")
-                .format("memory")
-                .outputMode(OutputMode.Complete())
-                .start();
+        return Assertions.assertDoesNotThrow(() -> {
+            return rowDataset
+                    .writeStream()
+                    .queryName("AggTest")
+                    .format("memory")
+                    .outputMode(OutputMode.Complete())
+                    .start();
+        });
     }
 }
