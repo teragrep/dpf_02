@@ -44,75 +44,90 @@ package com.teragrep.functions.dpf_02.aggregate;
  * Teragrep, the applicable Commercial License may apply to this file if you as
  * a licensee so wish it.
  */
-import com.teragrep.functions.dpf_02.operation.limit.LimitedList;
+import com.teragrep.functions.dpf_02.operation.sort.SortMethod;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import scala.collection.JavaConverters;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.Timestamp;
+import java.util.*;
+
 
 public final class LimitBuffer implements Serializable, BufferTrait {
     private final List<Row> rows;
     private final int count;
     private final int limit;
+    private final List<SortMethod> sortMethods;
+    private final TreeMap<Timestamp, Integer> sortMap;
 
     public LimitBuffer(final int limit) {
-        this(new ArrayList<>(), 0, limit);
+        this(new ArrayList<>(), new TreeMap<>(), 0, limit, new ArrayList<>());
     }
 
-    public LimitBuffer(final List<Row> rows, final int count, final int limit) {
+    public LimitBuffer(final List<Row> rows,
+                       final TreeMap<Timestamp, Integer> sortMap,
+                       final int count,
+                       final int limit,
+                       final List<SortMethod> sortMethods) {
         this.rows = rows;
         this.count = count;
         this.limit = limit;
+        this.sortMethods = sortMethods;
+        this.sortMap = sortMap;
     }
 
     @Override
     public BufferTrait zero() {
-        return new LimitBuffer(new ArrayList<>(), 0, limit);
+        return new LimitBuffer(new ArrayList<>(), new TreeMap<>(), 0, limit, sortMethods);
     }
 
     public LimitBuffer reduce(final Row input) {
-        List<Row> newRows = new ArrayList<>(rows);
-        newRows.add(input);
+        List<Row> rv = rows;
+        int newCount = count;
 
-        final int newCount = count + 1;
-
-        if (newCount > limit) {
-            newRows = new LimitedList<>(limit, newRows).toList();
+        if (rv.size() >= limit) {
+            Map.Entry<Timestamp, Integer> entry = sortMap.firstEntry();
+            if (entry.getKey().before(input.getTimestamp(0))) {
+                sortMap.remove(entry.getKey());
+                rows.set(entry.getValue(), input);
+                sortMap.put(input.getTimestamp(0), entry.getValue());
+            }
+        } else {
+            rows.add(input);
+            sortMap.put(input.getTimestamp(0), newCount);
+            newCount++;
         }
 
-        return new LimitBuffer(newRows, newCount, limit);
+        return new LimitBuffer(rv, sortMap, newCount, limit, sortMethods);
     }
 
     @Override
     public BufferTrait merge(final BufferTrait another) {
-        List<Row> merged = another.toList();
-        merged.addAll(rows);
+        List<Row> anotherRows = another.toList();
+        LimitBuffer current = this;
 
-        int newCount = count + another.count();
-
-        if (newCount > limit) {
-            merged = new LimitedList<>(limit, merged).toList();
-            newCount = limit;
+        for (final Row r : anotherRows) {
+            current = current.reduce(r);
         }
 
-        return new LimitBuffer(merged, newCount, limit);
+        return current;
     }
 
     @Override
     public Row finish() {
-        List<Row> rv = rows;
-        if (count > limit) {
-            rv = new LimitedList<>(limit, rv).toList();
+        List<Row> rv = new ArrayList<>(rows.size());
+
+        for (Map.Entry<Timestamp, Integer> entry : sortMap.entrySet()) {
+            rv.add(rows.get(entry.getValue()));
         }
+
         return RowFactory.create(JavaConverters.asScalaBuffer(rv).toSeq());
     }
 
     @Override
     public List<Row> toList() {
-        return new ArrayList<>(rows);
+        return rows;
     }
 
     @Override
