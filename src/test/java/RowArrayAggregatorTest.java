@@ -43,20 +43,24 @@
  * Teragrep, the applicable Commercial License may apply to this file if you as
  * a licensee so wish it.
  */
-
-import com.teragrep.functions.dpf_02.BatchCollect;
-import org.apache.spark.api.java.function.VoidFunction2;
+import com.teragrep.functions.dpf_02.aggregate.LimitBuffer;
+import com.teragrep.functions.dpf_02.aggregate.RowArrayAggregator;
+import com.teragrep.functions.dpf_02.aggregate.RowBuffer;
+import com.teragrep.functions.dpf_02.aggregate.SortBuffer;
+import com.teragrep.functions.dpf_02.operation.sort.AutomaticSort;
+import com.teragrep.functions.dpf_02.operation.sort.TimestampSort;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.execution.streaming.MemoryStream;
+import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -66,8 +70,10 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-public class BatchCollectTest {
+public class RowArrayAggregatorTest {
 
     // see https://stackoverflow.com/questions/56894068/how-to-perform-unit-testing-on-spark-structured-streaming
     // see ./sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala at 2.4.5
@@ -84,10 +90,60 @@ public class BatchCollectTest {
                     new StructField("offset", DataTypes.LongType, false, new MetadataBuilder().build())
             }
     );
-    
+
     @Test
-    public void testCollectAsDataframe() {
-    	SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
+    void testRowBuffer() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new RowBuffer(), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        Assertions.assertEquals(201, ds.count());
+    }
+
+    @Test
+    void testLimitBuffer() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new LimitBuffer(5), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        Assertions.assertEquals(5, ds.count());
+    }
+
+    @Test
+    void testSortBufferDescendingTime() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new SortBuffer(Arrays.asList(new TimestampSort())), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        Assertions.assertEquals("2408-12-08 03:01:25.0", ds.first().getTimestamp(0).toString());
+        Assertions.assertEquals(201, ds.count());
+        List<Row> collected = ds.collectAsList();
+        Assertions.assertEquals(201, collected.size());
+        Assertions.assertEquals("2408-12-08 03:01:25.0", collected.get(0).getTimestamp(0).toString());
+        Assertions.assertEquals("2025-01-01 00:00:00.0", collected.get(collected.size() - 1).getTimestamp(0).toString());
+
+    }
+
+    @Test
+    void testSortBufferAscendingTime() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new SortBuffer(Arrays.asList(new TimestampSort(false))), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        Assertions.assertEquals("2025-01-01 00:00:00.0", ds.first().getTimestamp(0).toString());
+        Assertions.assertEquals(201, ds.count());
+        List<Row> collected = ds.collectAsList();
+        Assertions.assertEquals(201, collected.size());
+        Assertions.assertEquals("2025-01-01 00:00:00.0", collected.get(0).getTimestamp(0).toString());
+        Assertions.assertEquals("2408-12-08 03:01:25.0", collected.get(collected.size() - 1).getTimestamp(0).toString());
+
+    }
+
+    @Test
+    void testSortBufferAuto() {
+        RowArrayAggregator aggregator = new RowArrayAggregator(new SortBuffer(Arrays.asList(new AutomaticSort("offset", false))), testSchema);
+        Dataset<Row> ds = dataset(aggregator.toColumn());
+        List<Row> collected = ds.collectAsList();
+        Assertions.assertEquals(201, collected.size());
+        Assertions.assertEquals("0", collected.get(0).getAs("offset").toString());
+        Assertions.assertEquals("20", collected.get(collected.size() - 1).getAs("offset").toString());
+        Assertions.assertEquals(201, ds.count());
+    }
+
+    private Dataset<Row> dataset(Column aggColumn) {
+        SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
         sparkSession.sparkContext().setLogLevel("ERROR");
@@ -96,14 +152,14 @@ public class BatchCollectTest {
         MemoryStream<Row> rowMemoryStream =
                 new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 100, null);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect, false);
+        rowDataset = rowDataset.agg(aggColumn);
+        StreamingQuery streamingQuery = startStream(rowDataset);
 
         long run = 0;
         long counter = 0;
         while (streamingQuery.isActive()) {
-            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
+            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(1735689600L+counter), ZoneOffset.UTC));
             if (run == 3) {
                 // make run 3 to be latest always
                 time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
@@ -136,96 +192,17 @@ public class BatchCollectTest {
                 // wait until the source feeds them all?
                 // TODO there must be a better way?
                 streamingQuery.processAllAvailable();
-				Assertions.assertDoesNotThrow(() -> streamingQuery.stop());
-				Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
-            }
-        }
-
-        Dataset<Row> collectedAsDF = batchCollect.getCollectedAsDataframe();
-        Assertions.assertEquals(100, collectedAsDF.count());
-
-        // assert that batches are correct (the newest 100 rows of data)
-        // batch number 3 is the newest in the test, others are in the order of creation
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("3")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("6")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("7")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("8")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("9")).count());
-    }
-
-    @Test
-    public void testSkipLimiting() {
-        SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
-        SQLContext sqlContext = sparkSession.sqlContext();
-
-        sparkSession.sparkContext().setLogLevel("ERROR");
-
-        ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
-        MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
-
-        BatchCollect batchCollect = new BatchCollect("_time", 5, new ArrayList<>());
-        Dataset<Row> rowDataset = rowMemoryStream.toDF();
-
-        // Skip limiting here
-        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect, true);
-
-        long run = 0;
-        long counter = 0;
-        while (streamingQuery.isActive()) {
-            Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
-            if (run == 3) {
-                // make run 3 to be latest always
-                time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
-            } else if (run == 10) {
-                // 10 runs only
-                streamingQuery.processAllAvailable();
                 Assertions.assertDoesNotThrow(() -> streamingQuery.stop());
                 Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
-                break;
-            }
-
-            rowMemoryStream.addData(
-                    // make rows containing counter as offset and run as partition
-                    makeRows(
-                            time,
-                            "data data",
-                            "topic",
-                            "stream",
-                            "host",
-                            "input",
-                            String.valueOf(run),
-                            counter,
-                            1
-                    )
-            );
-
-            counter++;
-
-            // create 20 events for 10 runs
-            if (counter == 20) {
-                run++;
-                counter = 0;
             }
         }
 
-        Dataset<Row> collectedAsDF = batchCollect.getCollectedAsDataframe();
-
-        // all the rows in the dataset, the limit of 5 rows is therefore not applied
-        Assertions.assertEquals(200, collectedAsDF.count());
-
-        // assert that batches are correct (all the rows, 10 batches)
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("0")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("1")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("2")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("3")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("4")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("5")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("6")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("7")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("8")).count());
-        Assertions.assertEquals(20, collectedAsDF.filter(functions.col("partition").equalTo("9")).count());
+        Dataset<Row> ds = sqlContext.sql("SELECT * FROM AggTest");
+        ds = ds.select(functions.explode(functions.col("`RowArrayAggregator(org.apache.spark.sql.Row)`.arrayOfInput")));
+        ds = ds.select("col.*");
+        return ds;
     }
+
 
     private Seq<Row> makeRows(Timestamp _time,
                               String _raw,
@@ -260,19 +237,13 @@ public class BatchCollectTest {
     }
 
 
-    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect, boolean skipLimiting) {
+    private StreamingQuery startStream(Dataset<Row> rowDataset) {
         return Assertions.assertDoesNotThrow(() -> {
             return rowDataset
                     .writeStream()
-                    .foreachBatch(
-                            new VoidFunction2<Dataset<Row>, Long>() {
-                                @Override
-                                public void call(Dataset<Row> batchDF, Long batchId) {
-                                    batchCollect.call(batchDF, batchId, skipLimiting);
-                                }
-                            }
-                    )
-                    .outputMode("append")
+                    .queryName("AggTest")
+                    .format("memory")
+                    .outputMode(OutputMode.Complete())
                     .start();
         });
     }

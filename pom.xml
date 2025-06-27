@@ -39,9 +39,15 @@
   </developers>
   <dependencies>
     <dependency>
+      <groupId>nl.jqno.equalsverifier</groupId>
+      <artifactId>equalsverifier</artifactId>
+      <version>3.17.4</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.12</artifactId>
-      <version>2.4.5</version>
+      <version>3.4.0</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -53,7 +59,7 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_2.12</artifactId>
-      <version>2.4.5</version>
+      <version>3.4.0</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -98,6 +104,34 @@
     <directory>${project.basedir}/target</directory>
     <plugins>
       <plugin>
+        <!-- see http://davidb.github.com/scala-maven-plugin -->
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
+        <version>4.8.1</version>
+        <executions>
+          <execution>
+            <!-- this is so we don't end with a compile error in maven-compiler-plugin -->
+            <phase>process-sources</phase>
+            <goals>
+              <goal>compile</goal>
+              <goal>testCompile</goal>
+            </goals>
+            <configuration>
+              <args>
+                <arg>-dependencyfile</arg>
+                <arg>${project.build.directory}/.scala_dependencies</arg>
+              </args>
+            </configuration>
+          </execution>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>doc-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
         <version>3.3.0</version>
@@ -110,6 +144,7 @@
           </execution>
         </executions>
       </plugin>
+      <!-- FIXME: Scala trait breaks this
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
@@ -125,7 +160,7 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>
+      </plugin> -->
       <plugin>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
