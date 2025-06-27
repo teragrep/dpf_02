@@ -98,6 +98,15 @@ public final class IpAddressSort implements SortMethod, Serializable {
 
     @Override
     public List<Row> sort(final List<Row> rows) {
+        if (!rows.isEmpty()) {
+            final Row first = rows.get(0);
+
+            try {
+                first.fieldIndex(columnName);
+            } catch (IllegalArgumentException e) {
+                return rows;
+            }
+        }
         rows.sort(comparator());
         return rows;
     }

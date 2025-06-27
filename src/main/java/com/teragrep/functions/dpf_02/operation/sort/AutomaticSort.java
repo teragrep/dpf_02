@@ -67,7 +67,14 @@ public class AutomaticSort implements SortMethod, Serializable {
         }
 
         Row r = rows.get(0);
-        final int i = r.fieldIndex(columnName);
+        final int i;
+
+        try {
+            i = r.fieldIndex(columnName);
+        } catch (IllegalArgumentException e) {
+            return rows;
+        }
+
         final DataType dt = r.schema().apply(i).dataType();
 
         SortMethod sortMethod;

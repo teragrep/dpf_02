@@ -45,6 +45,8 @@ package com.teragrep.functions.dpf_02.operation.sort;
  * a licensee so wish it.
  */
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 
 import java.io.Serializable;
 import java.util.Comparator;
@@ -78,6 +80,15 @@ public final class StringSort implements SortMethod, Serializable {
 
     @Override
     public List<Row> sort(final List<Row> rows) {
+        if (!rows.isEmpty()) {
+            final Row first = rows.get(0);
+
+            try {
+               first.fieldIndex(columnName);
+            } catch (IllegalArgumentException e) {
+                return rows;
+            }
+        }
         rows.sort(comparator());
         return rows;
     }
