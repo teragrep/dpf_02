@@ -263,12 +263,7 @@ public class BatchCollectTest {
         return rowDataset
                 .writeStream()
                 .foreachBatch(
-                        new VoidFunction2<Dataset<Row>, Long>() {
-                            @Override
-                            public void call(Dataset<Row> batchDF, Long batchId) {
-                                batchCollect.call(batchDF, batchId, skipLimiting);
-                            }
-                        }
+                        (VoidFunction2<Dataset<Row>, Long>) (batchDF, batchId) -> batchCollect.call(batchDF, batchId, skipLimiting)
                 )
                 .outputMode("append")
                 .start();

@@ -342,7 +342,7 @@ public class SortOperationTest {
                         new VoidFunction2<Dataset<Row>, Long>() {
                             @Override
                             public void call(Dataset<Row> batchDF, Long batchId) throws Exception {
-                                batchCollect.collect(batchDF, batchId);
+                                batchCollect.collect(batchDF, batchId, Collections.emptyList(), false);
                             }
                         }
                 )

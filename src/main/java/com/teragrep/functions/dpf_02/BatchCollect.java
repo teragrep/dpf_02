@@ -47,6 +47,7 @@ package com.teragrep.functions.dpf_02;
  */
 
 import org.apache.spark.sql.*;
+import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +58,7 @@ public final class BatchCollect extends SortOperation {
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchCollect.class);
     private Dataset<Row> savedDs = null;
     private Dataset<Row> lastRowDs = null;
+    private Dataset<Row> outputDs = null;
     private final String sortColumn;
     private final int numberOfRows;
     private StructType inputSchema;
@@ -84,23 +86,18 @@ public final class BatchCollect extends SortOperation {
      */
     public Dataset<Row> call(Dataset<Row> df, Long id, boolean skipLimiting) {
         Dataset<Row> rv;
-        if (skipLimiting) {
-            this.processAggregated(df);
-        }
-        else {
-            this.collect(df, id);
-        }
+        this.collect(df, id, Collections.emptyList(), skipLimiting);
 
         if (this.lastRowDs != null) {
-            rv = this.savedDs.union(this.lastRowDs);
+            rv = this.outputDs.union(this.lastRowDs);
         } else {
-            rv = this.savedDs;
+            rv = this.outputDs;
         }
 
         return rv;
     }
 
-    public void collect(Dataset<Row> batchDF, Long batchId) {
+    public void collect(Dataset<Row> batchDF, Long batchId, List<AbstractStep> postBcSteps, boolean skipLimiting) {
         // check that sortColumn (_time) exists,
         // and get the sortColId
         // otherwise, no sorting will be done.
@@ -108,7 +105,7 @@ public final class BatchCollect extends SortOperation {
             this.inputSchema = batchDF.schema();
         }
 
-        if (this.getListOfSortByClauses() == null || this.getListOfSortByClauses().size() < 1) {
+        if (this.getListOfSortByClauses() == null || this.getListOfSortByClauses().isEmpty()) {
             for (String field : this.inputSchema.fieldNames()) {
                 if (field.equals(this.sortColumn)) {
                     this.sortedBySingleColumn = true;
@@ -117,38 +114,37 @@ public final class BatchCollect extends SortOperation {
             }
         }
 
-        List<Row> collected = orderDataset(batchDF).limit(numberOfRows).collectAsList();
+        Dataset<Row> orderedDs = orderDataset(batchDF);
+        if (!skipLimiting) {
+            orderedDs = orderedDs.limit(numberOfRows);
+        }
+        List<Row> collected = orderedDs.collectAsList();
         Dataset<Row> createdDsFromCollected = SparkSession.builder().getOrCreate().createDataFrame(collected, this.inputSchema);
-
+        Dataset<Row> current;
         if (this.savedDs == null) {
-            this.savedDs = createdDsFromCollected;
+            current = createdDsFromCollected;
         }
         else {
-            this.savedDs = savedDs.union(createdDsFromCollected);
+            current = savedDs.union(createdDsFromCollected);
         }
 
-        this.savedDs = orderDataset(this.savedDs).limit(numberOfRows);
+        current = orderDataset(current);
+        if (!skipLimiting) {
+            current = current.limit(numberOfRows);
+        }
+        this.savedDs = current;
 
-    }
-
-    // Call this instead of collect to skip limiting (for aggregatesUsed=true)
-    // TODO remove this
-    public void processAggregated(Dataset<Row> ds) {
-        if (this.inputSchema == null) {
-            this.inputSchema = ds.schema();
+        // Post batchCollect steps processing
+        Dataset<Row> rv = current;
+        for (final AbstractStep step : postBcSteps) {
+            try {
+                rv = step.get(rv);
+            } catch (StreamingQueryException e) {
+                throw new IllegalStateException("Exception occurred while running post-batchcollect steps: ", e);
+            }
         }
 
-        List<Row> collected = orderDataset(ds).collectAsList();
-        Dataset<Row> createdDsFromCollected = SparkSession.builder().getOrCreate().createDataFrame(collected, this.inputSchema);
-
-        if (this.savedDs == null) {
-            this.savedDs = createdDsFromCollected;
-        }
-        else {
-            this.savedDs = savedDs.union(createdDsFromCollected);
-        }
-
-        this.savedDs = orderDataset(this.savedDs);
+        this.outputDs = rv;
     }
 
     private Dataset<Row> orderDataset(Dataset<Row> ds) {
@@ -162,9 +158,9 @@ public final class BatchCollect extends SortOperation {
     public Dataset<Row> getCollectedAsDataframe() {
         Dataset<Row> rv;
         if (this.lastRowDs != null) {
-            rv = this.savedDs.union(this.lastRowDs);
+           rv = this.outputDs.union(this.lastRowDs);
         } else {
-            rv = this.savedDs;
+            rv = this.outputDs;
         }
         return rv;
     }
@@ -172,6 +168,7 @@ public final class BatchCollect extends SortOperation {
     public void clear() {
         LOGGER.info("dpf_02 cleared");
         this.savedDs = null;
+        this.outputDs = null;
         this.lastRowDs = null;
         this.inputSchema = null;
     }
