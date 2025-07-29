@@ -58,6 +58,7 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
@@ -66,6 +67,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
+import java.util.concurrent.TimeoutException;
 
 public class SortOperationTest {
 
@@ -253,10 +255,10 @@ public class SortOperationTest {
     private void createData(BatchCollect batchCollect, SQLContext sqlContext) {
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
         MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, encoder);
+                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect);
+        StreamingQuery streamingQuery = Assertions.assertDoesNotThrow(() -> startStream(rowDataset, batchCollect));
 
         long run = 0;
         long counter = 0;
@@ -294,7 +296,7 @@ public class SortOperationTest {
             if (run == 4) {
                 // 4 runs only
                 streamingQuery.processAllAvailable();
-                streamingQuery.stop();
+                Assertions.assertDoesNotThrow(streamingQuery::stop);
                 Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
             }
         }
@@ -335,7 +337,7 @@ public class SortOperationTest {
     }
 
 
-    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect) {
+    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect) throws TimeoutException {
         return rowDataset
                 .writeStream()
                 .foreachBatch(

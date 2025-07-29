@@ -57,6 +57,7 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
+import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
@@ -65,6 +66,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.concurrent.TimeoutException;
 
 public class BatchCollectTest {
 
@@ -93,11 +95,11 @@ public class BatchCollectTest {
 
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
         MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, encoder);
+                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         BatchCollect batchCollect = new BatchCollect("_time", 100, null);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect, false);
+        StreamingQuery streamingQuery = Assertions.assertDoesNotThrow(() -> startStream(rowDataset, batchCollect, false));
 
         long run = 0;
         long counter = 0;
@@ -135,7 +137,7 @@ public class BatchCollectTest {
                 // wait until the source feeds them all?
                 // TODO there must be a better way?
                 streamingQuery.processAllAvailable();
-				streamingQuery.stop();
+				Assertions.assertDoesNotThrow(streamingQuery::stop);
 				Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
             }
         }
@@ -161,13 +163,13 @@ public class BatchCollectTest {
 
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
         MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, encoder);
+                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         BatchCollect batchCollect = new BatchCollect("_time", 5, new ArrayList<>());
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
 
         // Skip limiting here
-        StreamingQuery streamingQuery = startStream(rowDataset, batchCollect, true);
+        StreamingQuery streamingQuery = Assertions.assertDoesNotThrow(() -> startStream(rowDataset, batchCollect, true));
 
         long run = 0;
         long counter = 0;
@@ -179,7 +181,7 @@ public class BatchCollectTest {
             } else if (run == 10) {
                 // 10 runs only
                 streamingQuery.processAllAvailable();
-                streamingQuery.stop();
+                Assertions.assertDoesNotThrow(streamingQuery::stop);
                 Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
                 break;
             }
@@ -259,7 +261,7 @@ public class BatchCollectTest {
     }
 
 
-    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect, boolean skipLimiting) {
+    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect, boolean skipLimiting) throws TimeoutException {
         return rowDataset
                 .writeStream()
                 .foreachBatch(
