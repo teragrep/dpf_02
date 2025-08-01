@@ -100,7 +100,7 @@ public class BatchCollectTest {
         MemoryStream<Row> rowMemoryStream =
                 new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 100, null);
+        BatchCollect batchCollect = new BatchCollect("_time", 100);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
         StreamingQuery streamingQuery = Assertions.assertDoesNotThrow(() -> startStream(rowDataset, batchCollect, false, Collections.emptyList()));
 
@@ -168,7 +168,7 @@ public class BatchCollectTest {
         MemoryStream<Row> rowMemoryStream =
                 new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 5, new ArrayList<>());
+        BatchCollect batchCollect = new BatchCollect("_time", 5);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
 
         // Skip limiting here
@@ -242,7 +242,7 @@ public class BatchCollectTest {
         MemoryStream<Row> rowMemoryStream =
                 new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 100, null);
+        BatchCollect batchCollect = new BatchCollect("_time", 100);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
         StreamingQuery streamingQuery = Assertions.assertDoesNotThrow(() -> startStream(rowDataset, batchCollect, false,
                 Collections.singletonList(new TestAggregationStep())));

@@ -107,7 +107,7 @@ public class SortOperationTest {
         sortByClauses.add(partSbc);
         sortByClauses.add(offSbc);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 20, sortByClauses);
+        BatchCollect batchCollect = new BatchCollect("_time", 20, 0, sortByClauses);
 
         createData(batchCollect, sqlContext);
 
@@ -145,7 +145,7 @@ public class SortOperationTest {
         sortByClauses.add(partSbc);
         sortByClauses.add(offSbc);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 20, sortByClauses);
+        BatchCollect batchCollect = new BatchCollect("_time", 20,0, sortByClauses);
 
         createData(batchCollect, sqlContext);
 
@@ -183,7 +183,7 @@ public class SortOperationTest {
         sortByClauses.add(partSbc);
         sortByClauses.add(ipSbc);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 20, sortByClauses);
+        BatchCollect batchCollect = new BatchCollect("_time", 20,0, sortByClauses);
 
         createData(batchCollect, sqlContext);
 
@@ -230,7 +230,7 @@ public class SortOperationTest {
         sortByClauses.add(hostSbc);
         sortByClauses.add(offSbc);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 20, sortByClauses);
+        BatchCollect batchCollect = new BatchCollect("_time", 20,0, sortByClauses);
 
         createData(batchCollect, sqlContext);
 

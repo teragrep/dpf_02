@@ -66,14 +66,14 @@ public final class BatchCollect extends SortOperation {
     private boolean sortedBySingleColumn = false;
 
     public BatchCollect(String sortColumn, int defaultLimit) {
-        this(sortColumn, defaultLimit, new ArrayList<>());
+        this(sortColumn, defaultLimit, 0, new ArrayList<>());
     }
 
-    public BatchCollect(String sortColumn, int defaultLimit, List<SortByClause> listOfSortByClauses) {
-        this(sortColumn, defaultLimit, listOfSortByClauses, 0);
+    public BatchCollect(String sortColumn, int defaultLimit, int postBcLimit) {
+        this(sortColumn, defaultLimit, postBcLimit, new ArrayList<>());
     }
 
-    public BatchCollect(String sortColumn, int defaultLimit, List<SortByClause> listOfSortByClauses, int postBcLimit) {
+    public BatchCollect(String sortColumn, int defaultLimit, int postBcLimit, List<SortByClause> listOfSortByClauses) {
         super(listOfSortByClauses);
         LOGGER.info("Initialized BatchCollect based on column <[{}]> and a limit of <[{}]> row(s). SortByClauses included: <[{}]>. Post batchcollect limit of <[{}]> row(s)",
                 sortColumn, defaultLimit, (listOfSortByClauses != null ? listOfSortByClauses.size() : "null"), postBcLimit);
