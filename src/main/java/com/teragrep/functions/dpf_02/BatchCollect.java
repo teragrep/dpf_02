@@ -60,21 +60,26 @@ public final class BatchCollect extends SortOperation {
     private Dataset<Row> lastRowDs = null;
     private Dataset<Row> outputDs = null;
     private final String sortColumn;
-    private final int numberOfRows;
+    private final int defaultLimit;
+    private final int postBcLimit;
     private StructType inputSchema;
     private boolean sortedBySingleColumn = false;
 
-    public BatchCollect(String sortColumn, int numberOfRows) {
-        this(sortColumn, numberOfRows, new ArrayList<>());
+    public BatchCollect(String sortColumn, int defaultLimit) {
+        this(sortColumn, defaultLimit, new ArrayList<>());
     }
 
-    public BatchCollect(String sortColumn, int numberOfRows, List<SortByClause> listOfSortByClauses) {
-        super(listOfSortByClauses);
+    public BatchCollect(String sortColumn, int defaultLimit, List<SortByClause> listOfSortByClauses) {
+        this(sortColumn, defaultLimit, listOfSortByClauses, 0);
+    }
 
-        LOGGER.info("Initialized BatchCollect based on column " + sortColumn + " and a limit of " + numberOfRows + " row(s)." +
-                " SortByClauses included: " + (listOfSortByClauses != null ? listOfSortByClauses.size() : "<null>"));
+    public BatchCollect(String sortColumn, int defaultLimit, List<SortByClause> listOfSortByClauses, int postBcLimit) {
+        super(listOfSortByClauses);
+        LOGGER.info("Initialized BatchCollect based on column <[{}]> and a limit of <[{}]> row(s). SortByClauses included: <[{}]>. Post batchcollect limit of <[{}]> row(s)",
+                sortColumn, defaultLimit, (listOfSortByClauses != null ? listOfSortByClauses.size() : "null"), postBcLimit);
         this.sortColumn = sortColumn;
-        this.numberOfRows = numberOfRows;
+        this.defaultLimit = defaultLimit;
+        this.postBcLimit = postBcLimit;
     }
 
     /**
@@ -98,6 +103,15 @@ public final class BatchCollect extends SortOperation {
     }
 
     public void collect(Dataset<Row> batchDF, Long batchId, List<AbstractStep> postBcSteps, boolean skipLimiting) {
+        // Apply post-batchcollect limit if steps are present, otherwise use the default.
+        // limit<=0 means no limit
+        final int limit;
+        if (!postBcSteps.isEmpty()) {
+            limit = this.postBcLimit;
+        } else {
+            limit = this.defaultLimit;
+        }
+
         // check that sortColumn (_time) exists,
         // and get the sortColId
         // otherwise, no sorting will be done.
@@ -115,8 +129,8 @@ public final class BatchCollect extends SortOperation {
         }
 
         Dataset<Row> orderedDs = orderDataset(batchDF);
-        if (!skipLimiting) {
-            orderedDs = orderedDs.limit(numberOfRows);
+        if (!skipLimiting && limit > 0) {
+            orderedDs = orderedDs.limit(limit);
         }
         List<Row> collected = orderedDs.collectAsList();
         Dataset<Row> createdDsFromCollected = SparkSession.builder().getOrCreate().createDataFrame(collected, this.inputSchema);
@@ -129,8 +143,8 @@ public final class BatchCollect extends SortOperation {
         }
 
         current = orderDataset(current);
-        if (!skipLimiting) {
-            current = current.limit(numberOfRows);
+        if (!skipLimiting && limit > 0) {
+            current = current.limit(limit);
         }
         this.savedDs = current;
 

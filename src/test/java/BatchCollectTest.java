@@ -291,7 +291,7 @@ public class BatchCollectTest {
         Dataset<Row> collectedAsDF = batchCollect.getCollectedAsDataframe();
         Assertions.assertEquals(1, collectedAsDF.count());
 
-        Assertions.assertEquals(100L, collectedAsDF.first().getLong(0));
+        Assertions.assertEquals(201L, collectedAsDF.first().getLong(0));
     }
 
     private Seq<Row> makeRows(Timestamp _time,
