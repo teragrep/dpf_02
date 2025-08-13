@@ -49,7 +49,19 @@ package com.teragrep.functions.dpf_02;
 import java.io.Serializable;
 
 /**
- * Class for the different sortByClauses in the 'sort' command
+ * @startuml
+ * class SortByClause {
+ *   - getLimit()
+ * }
+ *
+ * note right of  SortByClause
+ * Responsibilities:
+ * - Sorts Rows
+ *
+ * Collaborators:
+ * - ConvertIPStringToInt
+ * end note
+ * @enduml
  */
 public class SortByClause implements Serializable {
     private boolean descending = false; // + or -
