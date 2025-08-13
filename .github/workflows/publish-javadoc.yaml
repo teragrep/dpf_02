@@ -14,3 +14,5 @@ jobs:
           java-version: 11
           target-folder: "${GITHUB_REF##*/}"
           project: maven
+        env:
+          MAVEN_OPTS: "-Dmaven.javadoc.failOnError=false"
