@@ -6,7 +6,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Deploy JavaDoc
+      - name: Publish JavaDoc
         uses: MathieuSoysal/Javadoc-publisher.yml@v3.0.2
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
