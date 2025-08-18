@@ -58,6 +58,9 @@ import java.util.*;
  * @class BatchCollect
  * @brief Handles the business logic for processing orders.
  *
+ * @responsibilities
+ * - Collects rows
+ *
  * @collaborators
  * - SortByClause
  *
