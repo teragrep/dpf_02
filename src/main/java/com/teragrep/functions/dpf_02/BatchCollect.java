@@ -69,7 +69,7 @@ import java.util.*;
  *   + call()
  * }
  *
- * BatchCollect --&gt; SortByClause : sort order
+ * {@code BatchCollect --> SortByClause : sort order}
  *
  * note right of  BatchCollect
  * Responsibilities:
@@ -81,6 +81,7 @@ import java.util.*;
  *
  * @enduml
  */
+
 public final class BatchCollect extends SortOperation {
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchCollect.class);
     private Dataset<Row> savedDs = null;
