@@ -66,7 +66,7 @@ import java.util.*;
  *
  * @startuml
  * class BatchCollect {
- *   + call()
+ *   + call(df: Dataset<Row>, id: Long, skipLimiting: boolean) : Dataset<Row>  "Collects rows up to the defined limit unless skipLimiting is provided"
  * }
  *
  * BatchCollect --> SortByClause : sort order
