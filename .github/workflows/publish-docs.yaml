@@ -1,0 +1,52 @@
+on:
+  push:
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Checkout
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Cache
+      - name: Cache Local Maven Repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+      # Setup java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 11
+          distribution: 'adopt'
+      # Used for docs output
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
+      # Make dirs
+      - name: Make dirs
+        run: mkdir -p docs/${{steps.extract_branch.outputs.branch}}/
+      # Run javadoc
+      - name: Generate javadoc
+        run: mvn -B javadoc:aggregate && mv target/site/apidocs "docs/${{steps.extract_branch.outputs.branch}}/javadoc/"
+        env:
+          MAVEN_OPTS: "-Dmaven.javadoc.failOnError=false"
+      # Install dependencies
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install doxygen graphviz plantuml
+      # Generate doxygen docs
+      - name: Generate Doxygen docs
+        run: doxygen Doxyfile && mv "target/doxygen/html" "docs/${{steps.extract_branch.outputs.branch}}/doxygen/"
+        env:
+          OUTPUT_DIRECTORY: "target/doxygen"
+      # Deploy
+      - name: Deploy docs
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: docs/${{steps.extract_branch.outputs.branch}}/
+          target-folder: docs/${{steps.extract_branch.outputs.branch}}/
+          token: ${{ secrets.GITHUB_TOKEN }}

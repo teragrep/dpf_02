@@ -4,7 +4,7 @@ FILE_PATTERNS          = *.java
 RECURSIVE              = YES
 
 # OUTPUT
-OUTPUT_DIRECTORY       = docs
+OUTPUT_DIRECTORY       = $(OUTPUT_DIRECTORY)
 GENERATE_LATEX         = NO
 GENERATE_HTML          = YES
 
@@ -27,7 +27,7 @@ DOT_IMAGE_FORMAT       = svg
 
 # PLANTUML (optional)
 USE_PLANTUML           = YES
-PLANTUML_JAR_PATH      = /usr/share/java/plantuml.jar
+PLANTUML_JAR_PATH      = /usr/share/plantuml/plantuml.jar
 PLANTUML_INCLUDE_PATH  = .
 PLANTUML_CFG_FILE      =
 
