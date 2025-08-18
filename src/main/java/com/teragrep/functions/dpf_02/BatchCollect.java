@@ -58,19 +58,12 @@ import java.util.*;
  * @class BatchCollect
  * @brief Handles the business logic for processing orders.
  *
- * @responsibilities
- * - Magiaa tapahtuu
- *
- * @collaborators
- * - UusiObjekti
- *
  * @startuml
  * class BatchCollect {
  *   + call()
  * }
  *
  * BatchCollect --> SortByClause : sort order
- * BatchCollect --> UusiObjekti : magiaa
  *
  * note right of  BatchCollect
  * Responsibilities:
