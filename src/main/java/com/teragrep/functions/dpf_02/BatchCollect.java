@@ -69,7 +69,7 @@ import java.util.*;
  *   + call()
  * }
  *
- * BatchCollect --> SortByClause : sort order
+ * BatchCollect --&gt; SortByClause : sort order
  *
  * note right of  BatchCollect
  * Responsibilities:

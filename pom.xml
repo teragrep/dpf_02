@@ -122,6 +122,38 @@
             </goals>
             <configuration>
               <source>11</source>
+              <tags>
+                <tag>
+                  <name>startuml</name>
+                  <placement></placement>
+                  <head>startuml</head>
+                </tag>
+                <tag>
+                  <name>enduml</name>
+                  <placement></placement>
+                  <head>enduml</head>
+                </tag>
+                <tag>
+                  <name>class</name>
+                  <placement></placement>
+                  <head>class</head>
+                </tag>
+                <tag>
+                  <name>brief</name>
+                  <placement></placement>
+                  <head>brief</head>
+                </tag>
+                <tag>
+                  <name>responsibilities</name>
+                  <placement></placement>
+                  <head>responsibilities</head>
+                </tag>
+                <tag>
+                  <name>collaborators</name>
+                  <placement></placement>
+                  <head>collaborators</head>
+                </tag>
+              </tags>
             </configuration>
           </execution>
         </executions>
@@ -163,6 +195,8 @@
             <exclude>.github/ISSUE_TEMPLATE/*</exclude>
             <exclude>toolchains.xml</exclude>
             <exclude>settings.xml</exclude>
+            <!-- Doxygen -->
+            <exclude>Doxyfile</exclude>
             <!-- readme -->
             <exclude>README.adoc</exclude>
             <exclude>README.md</exclude>
