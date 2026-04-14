@@ -132,13 +132,14 @@ public final class BatchCollect extends SortOperation {
         if (!skipLimiting && limit > 0) {
             orderedDs = orderedDs.limit(limit);
         }
-
+        List<Row> collected = orderedDs.collectAsList();
+        Dataset<Row> createdDsFromCollected = SparkSession.builder().getOrCreate().createDataFrame(collected, this.inputSchema);
         Dataset<Row> current;
         if (this.savedDs == null) {
-            current = orderedDs;
+            current = createdDsFromCollected;
         }
         else {
-            current = savedDs.union(orderedDs);
+            current = savedDs.union(createdDsFromCollected);
         }
 
         current = orderDataset(current);
