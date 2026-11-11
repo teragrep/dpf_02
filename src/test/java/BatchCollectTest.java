@@ -1,6 +1,6 @@
 /*
  * Teragrep Batch Collect DPF-02
- * Copyright (C) 2019, 2020, 2021, 2022  Suomen Kanuuna Oy
+ * Copyright (C) 2019-2026 Suomen Kanuuna Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -13,7 +13,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <https://github.com/teragrep/teragrep/blob/main/LICENSE>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  *
  * Additional permission under GNU Affero General Public License version 3
@@ -43,7 +43,6 @@
  * Teragrep, the applicable Commercial License may apply to this file if you as
  * a licensee so wish it.
  */
-
 import com.teragrep.functions.dpf_02.AbstractStep;
 import com.teragrep.functions.dpf_02.BatchCollect;
 import org.apache.spark.api.java.function.VoidFunction2;
@@ -76,33 +75,31 @@ public class BatchCollectTest {
     // see https://stackoverflow.com/questions/56894068/how-to-perform-unit-testing-on-spark-structured-streaming
     // see ./sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala at 2.4.5
 
-    private static final StructType testSchema = new StructType(
-            new StructField[]{
-                    new StructField("_time", DataTypes.TimestampType, false, new MetadataBuilder().build()),
-                    new StructField("_raw", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("index", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("sourcetype", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("host", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("source", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("partition", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("offset", DataTypes.LongType, false, new MetadataBuilder().build())
-            }
-    );
-    
+    private static final StructType testSchema = new StructType(new StructField[] {
+            new StructField("_time", DataTypes.TimestampType, false, new MetadataBuilder().build()),
+            new StructField("_raw", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("index", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("sourcetype", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("host", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("source", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("partition", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("offset", DataTypes.LongType, false, new MetadataBuilder().build())
+    });
+
     @Test
     public void testCollectAsDataframe() {
-    	SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
+        SparkSession sparkSession = SparkSession.builder().master("local[*]").getOrCreate();
         SQLContext sqlContext = sparkSession.sqlContext();
 
         sparkSession.sparkContext().setLogLevel("ERROR");
 
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
-        MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
+        MemoryStream<Row> rowMemoryStream = new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         BatchCollect batchCollect = new BatchCollect("_time", 100);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        StreamingQuery streamingQuery = Assertions.assertDoesNotThrow(() -> startStream(rowDataset, batchCollect, false, Collections.emptyList()));
+        StreamingQuery streamingQuery = Assertions
+                .assertDoesNotThrow(() -> startStream(rowDataset, batchCollect, false, Collections.emptyList()));
 
         long run = 0;
         long counter = 0;
@@ -110,23 +107,15 @@ public class BatchCollectTest {
             Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
             if (run == 3) {
                 // make run 3 to be latest always
-                time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
+                time = Timestamp
+                        .valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L + counter), ZoneOffset.UTC));
             }
 
-            rowMemoryStream.addData(
-                    // make rows containing counter as offset and run as partition
-                    makeRows(
-                            time,
-                            "data data",
-                            "topic",
-                            "stream",
-                            "host",
-                            "input",
-                            String.valueOf(run),
-                            counter,
-                            1
-                    )
-            );
+            rowMemoryStream
+                    .addData(
+                            // make rows containing counter as offset and run as partition
+                            makeRows(time, "data data", "topic", "stream", "host", "input", String.valueOf(run), counter, 1)
+                    );
 
             // create 20 events for 10 runs
             if (counter == 20) {
@@ -140,8 +129,8 @@ public class BatchCollectTest {
                 // wait until the source feeds them all?
                 // TODO there must be a better way?
                 streamingQuery.processAllAvailable();
-				Assertions.assertDoesNotThrow(streamingQuery::stop);
-				Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
+                Assertions.assertDoesNotThrow(streamingQuery::stop);
+                Assertions.assertDoesNotThrow(() -> streamingQuery.awaitTermination());
             }
         }
 
@@ -165,14 +154,14 @@ public class BatchCollectTest {
         sparkSession.sparkContext().setLogLevel("ERROR");
 
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
-        MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
+        MemoryStream<Row> rowMemoryStream = new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         BatchCollect batchCollect = new BatchCollect("_time", 5);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
 
         // Skip limiting here
-        StreamingQuery streamingQuery = Assertions.assertDoesNotThrow(() -> startStream(rowDataset, batchCollect, true, Collections.emptyList()));
+        StreamingQuery streamingQuery = Assertions
+                .assertDoesNotThrow(() -> startStream(rowDataset, batchCollect, true, Collections.emptyList()));
 
         long run = 0;
         long counter = 0;
@@ -180,8 +169,10 @@ public class BatchCollectTest {
             Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
             if (run == 3) {
                 // make run 3 to be latest always
-                time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
-            } else if (run == 10) {
+                time = Timestamp
+                        .valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L + counter), ZoneOffset.UTC));
+            }
+            else if (run == 10) {
                 // 10 runs only
                 streamingQuery.processAllAvailable();
                 Assertions.assertDoesNotThrow(streamingQuery::stop);
@@ -189,20 +180,11 @@ public class BatchCollectTest {
                 break;
             }
 
-            rowMemoryStream.addData(
-                    // make rows containing counter as offset and run as partition
-                    makeRows(
-                            time,
-                            "data data",
-                            "topic",
-                            "stream",
-                            "host",
-                            "input",
-                            String.valueOf(run),
-                            counter,
-                            1
-                    )
-            );
+            rowMemoryStream
+                    .addData(
+                            // make rows containing counter as offset and run as partition
+                            makeRows(time, "data data", "topic", "stream", "host", "input", String.valueOf(run), counter, 1)
+                    );
 
             counter++;
 
@@ -239,13 +221,16 @@ public class BatchCollectTest {
         sparkSession.sparkContext().setLogLevel("ERROR");
 
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
-        MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
+        MemoryStream<Row> rowMemoryStream = new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         BatchCollect batchCollect = new BatchCollect("_time", 100);
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
-        StreamingQuery streamingQuery = Assertions.assertDoesNotThrow(() -> startStream(rowDataset, batchCollect, false,
-                Collections.singletonList(new TestAggregationStep())));
+        StreamingQuery streamingQuery = Assertions
+                .assertDoesNotThrow(
+                        () -> startStream(
+                                rowDataset, batchCollect, false, Collections.singletonList(new TestAggregationStep())
+                        )
+                );
 
         long run = 0;
         long counter = 0;
@@ -253,23 +238,15 @@ public class BatchCollectTest {
             Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
             if (run == 3) {
                 // make run 3 to be latest always
-                time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
+                time = Timestamp
+                        .valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L + counter), ZoneOffset.UTC));
             }
 
-            rowMemoryStream.addData(
-                    // make rows containing counter as offset and run as partition
-                    makeRows(
-                            time,
-                            "data data",
-                            "topic",
-                            "stream",
-                            "host",
-                            "input",
-                            String.valueOf(run),
-                            counter,
-                            1
-                    )
-            );
+            rowMemoryStream
+                    .addData(
+                            // make rows containing counter as offset and run as partition
+                            makeRows(time, "data data", "topic", "stream", "host", "input", String.valueOf(run), counter, 1)
+                    );
 
             // create 20 events for 10 runs
             if (counter == 20) {
@@ -294,27 +271,20 @@ public class BatchCollectTest {
         Assertions.assertEquals(201L, collectedAsDF.first().getLong(0));
     }
 
-    private Seq<Row> makeRows(Timestamp _time,
-                              String _raw,
-                              String index,
-                              String sourcetype,
-                              String host,
-                              String source,
-                              String partition,
-                              Long offset,
-                              long amount) {
+    private Seq<Row> makeRows(
+            Timestamp _time,
+            String _raw,
+            String index,
+            String sourcetype,
+            String host,
+            String source,
+            String partition,
+            Long offset,
+            long amount
+    ) {
         ArrayList<Row> rowArrayList = new ArrayList<>();
 
-        Row row = RowFactory.create(
-                _time,
-                _raw,
-                index,
-                sourcetype,
-                host,
-                source,
-                partition,
-                offset
-        );
+        Row row = RowFactory.create(_time, _raw, index, sourcetype, host, source, partition, offset);
 
         while (amount > 0) {
             rowArrayList.add(row);
@@ -326,17 +296,14 @@ public class BatchCollectTest {
         return rowSeq;
     }
 
-
-    private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect,
-                                       boolean skipLimiting, List<AbstractStep> steps) throws TimeoutException {
-        return rowDataset
-                .writeStream()
-                .foreachBatch(
-                        (VoidFunction2<Dataset<Row>, Long>) (batchDF, batchId) -> {
-                            batchCollect.collect(batchDF, batchId, steps, skipLimiting);
-                        }
-                )
-                .outputMode("append")
-                .start();
+    private StreamingQuery startStream(
+            Dataset<Row> rowDataset,
+            BatchCollect batchCollect,
+            boolean skipLimiting,
+            List<AbstractStep> steps
+    ) throws TimeoutException {
+        return rowDataset.writeStream().foreachBatch((VoidFunction2<Dataset<Row>, Long>) (batchDF, batchId) -> {
+            batchCollect.collect(batchDF, batchId, steps, skipLimiting);
+        }).outputMode("append").start();
     }
 }

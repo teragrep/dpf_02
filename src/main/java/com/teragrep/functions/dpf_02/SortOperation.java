@@ -1,3 +1,48 @@
+/*
+ * Teragrep Batch Collect DPF-02
+ * Copyright (C) 2019-2026 Suomen Kanuuna Oy
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ *
+ * Additional permission under GNU Affero General Public License version 3
+ * section 7
+ *
+ * If you modify this Program, or any covered work, by linking or combining it
+ * with other code, such other code is not for that reason alone subject to any
+ * of the requirements of the GNU Affero GPL version 3 as long as this Program
+ * is the same Program as licensed from Suomen Kanuuna Oy without any additional
+ * modifications.
+ *
+ * Supplemented terms under GNU Affero General Public License version 3
+ * section 7
+ *
+ * Origin of the software must be attributed to Suomen Kanuuna Oy. Any modified
+ * versions must be marked as "Modified version of" The Program.
+ *
+ * Names of the licensors and authors may not be used for publicity purposes.
+ *
+ * No rights are granted for use of trade names, trademarks, or service marks
+ * which are in The Program if any.
+ *
+ * Licensee must indemnify licensors and authors for any liability that these
+ * contractual assumptions impose on licensors and authors.
+ *
+ * To the extent this program is licensed as part of the Commercial versions of
+ * Teragrep, the applicable Commercial License may apply to this file if you as
+ * a licensee so wish it.
+ */
 package com.teragrep.functions.dpf_02;
 
 /*
@@ -56,6 +101,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class SortOperation {
+
     private final List<SortByClause> listOfSortByClauses;
 
     /**
@@ -98,14 +144,16 @@ public abstract class SortOperation {
         Column column;
         switch (sortByClause.getSortAsType()) {
             case STRING:
-                column = sortByClause.isDescending() ?
-                        functions.col(sortByClause.getFieldName()).cast(DataTypes.StringType).desc() :
-                        functions.col(sortByClause.getFieldName()).cast(DataTypes.StringType).asc();
+                column = sortByClause.isDescending() ? functions
+                        .col(sortByClause.getFieldName())
+                        .cast(DataTypes.StringType)
+                        .desc() : functions.col(sortByClause.getFieldName()).cast(DataTypes.StringType).asc();
                 break;
             case NUMERIC:
-                column = sortByClause.isDescending() ?
-                        functions.col(sortByClause.getFieldName()).cast(DataTypes.DoubleType).desc() :
-                        functions.col(sortByClause.getFieldName()).cast(DataTypes.DoubleType).asc();
+                column = sortByClause.isDescending() ? functions
+                        .col(sortByClause.getFieldName())
+                        .cast(DataTypes.DoubleType)
+                        .desc() : functions.col(sortByClause.getFieldName()).cast(DataTypes.DoubleType).asc();
                 break;
             case IP_ADDRESS:
                 final SparkSession ss = SparkSession.builder().getOrCreate();
@@ -117,9 +165,9 @@ public abstract class SortOperation {
                 break;
             case DEFAULT:
             default:
-                column = sortByClause.isDescending() ?
-                        functions.col(sortByClause.getFieldName()).desc() :
-                        functions.col(sortByClause.getFieldName()).asc();
+                column = sortByClause.isDescending() ? functions.col(sortByClause.getFieldName()).desc() : functions
+                        .col(sortByClause.getFieldName())
+                        .asc();
         }
         return column;
     }
@@ -157,19 +205,22 @@ public abstract class SortOperation {
 
     /**
      * Checks if a column only contains numbers even if it is labeled as a string column.
-     * @param dataset dataset to check
+     * 
+     * @param dataset   dataset to check
      * @param fieldName name of the column
      * @return Numeric or String SortByClause.Type
      */
     private SortByClause.Type numericalStringCheck(Dataset<Row> dataset, String fieldName) {
         // Value is numerical if it is castable to Double
-        Dataset<Row> tempDataset = dataset.withColumn("isNumerical", functions.col(fieldName).cast(DataTypes.DoubleType).isNotNull());
+        Dataset<Row> tempDataset = dataset
+                .withColumn("isNumerical", functions.col(fieldName).cast(DataTypes.DoubleType).isNotNull());
 
         // If the isNumerical column has even one false value, the column contains strings
         if (tempDataset.filter(tempDataset.col("isNumerical").contains(false)).isEmpty()) {
             // no false values found
             return SortByClause.Type.NUMERIC;
-        } else {
+        }
+        else {
             return SortByClause.Type.STRING;
         }
     }

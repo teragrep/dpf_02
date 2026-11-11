@@ -1,3 +1,48 @@
+/*
+ * Teragrep Batch Collect DPF-02
+ * Copyright (C) 2019-2026 Suomen Kanuuna Oy
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ *
+ * Additional permission under GNU Affero General Public License version 3
+ * section 7
+ *
+ * If you modify this Program, or any covered work, by linking or combining it
+ * with other code, such other code is not for that reason alone subject to any
+ * of the requirements of the GNU Affero GPL version 3 as long as this Program
+ * is the same Program as licensed from Suomen Kanuuna Oy without any additional
+ * modifications.
+ *
+ * Supplemented terms under GNU Affero General Public License version 3
+ * section 7
+ *
+ * Origin of the software must be attributed to Suomen Kanuuna Oy. Any modified
+ * versions must be marked as "Modified version of" The Program.
+ *
+ * Names of the licensors and authors may not be used for publicity purposes.
+ *
+ * No rights are granted for use of trade names, trademarks, or service marks
+ * which are in The Program if any.
+ *
+ * Licensee must indemnify licensors and authors for any liability that these
+ * contractual assumptions impose on licensors and authors.
+ *
+ * To the extent this program is licensed as part of the Commercial versions of
+ * Teragrep, the applicable Commercial License may apply to this file if you as
+ * a licensee so wish it.
+ */
 package com.teragrep.functions.dpf_02;
 
 /*
@@ -55,6 +100,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 public final class BatchCollect extends SortOperation {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchCollect.class);
     private Dataset<Row> savedDs = null;
     private Dataset<Row> lastRowDs = null;
@@ -75,8 +121,12 @@ public final class BatchCollect extends SortOperation {
 
     public BatchCollect(String sortColumn, int defaultLimit, int postBcLimit, List<SortByClause> listOfSortByClauses) {
         super(listOfSortByClauses);
-        LOGGER.info("Initialized BatchCollect based on column <[{}]> and a limit of <[{}]> row(s). SortByClauses included: <[{}]>. Post batchcollect limit of <[{}]> row(s)",
-                sortColumn, defaultLimit, (listOfSortByClauses != null ? listOfSortByClauses.size() : "null"), postBcLimit);
+        LOGGER
+                .info(
+                        "Initialized BatchCollect based on column <[{}]> and a limit of <[{}]> row(s). SortByClauses included: <[{}]>. Post batchcollect limit of <[{}]> row(s)",
+                        sortColumn, defaultLimit, (listOfSortByClauses != null ? listOfSortByClauses.size() : "null"),
+                        postBcLimit
+                );
         this.sortColumn = sortColumn;
         this.defaultLimit = defaultLimit;
         this.postBcLimit = postBcLimit;
@@ -84,8 +134,9 @@ public final class BatchCollect extends SortOperation {
 
     /**
      * Returns the batchCollected dataframe.
-     * @param df  Dataframe to perform batch collection (and sorting) on
-     * @param id  identification number for the dataframe, usually batch ID
+     * 
+     * @param df           Dataframe to perform batch collection (and sorting) on
+     * @param id           identification number for the dataframe, usually batch ID
      * @param skipLimiting Skips limiting of initial dataset, use for aggregated datasets
      * @return sorted dataset
      */
@@ -95,7 +146,8 @@ public final class BatchCollect extends SortOperation {
 
         if (this.lastRowDs != null) {
             rv = this.outputDs.union(this.lastRowDs);
-        } else {
+        }
+        else {
             rv = this.outputDs;
         }
 
@@ -108,7 +160,8 @@ public final class BatchCollect extends SortOperation {
         final int limit;
         if (!postBcSteps.isEmpty()) {
             limit = this.postBcLimit;
-        } else {
+        }
+        else {
             limit = this.defaultLimit;
         }
 
@@ -133,7 +186,10 @@ public final class BatchCollect extends SortOperation {
             orderedDs = orderedDs.limit(limit);
         }
         List<Row> collected = orderedDs.collectAsList();
-        Dataset<Row> createdDsFromCollected = SparkSession.builder().getOrCreate().createDataFrame(collected, this.inputSchema);
+        Dataset<Row> createdDsFromCollected = SparkSession
+                .builder()
+                .getOrCreate()
+                .createDataFrame(collected, this.inputSchema);
         Dataset<Row> current;
         if (this.savedDs == null) {
             current = createdDsFromCollected;
@@ -153,7 +209,8 @@ public final class BatchCollect extends SortOperation {
         for (final AbstractStep step : postBcSteps) {
             try {
                 rv = step.get(rv);
-            } catch (StreamingQueryException e) {
+            }
+            catch (StreamingQueryException e) {
                 throw new IllegalStateException("Exception occurred while running post-batchcollect steps: ", e);
             }
         }
@@ -164,7 +221,8 @@ public final class BatchCollect extends SortOperation {
     private Dataset<Row> orderDataset(Dataset<Row> ds) {
         if (this.sortedBySingleColumn) {
             return ds.orderBy(functions.col(this.sortColumn).desc());
-        } else {
+        }
+        else {
             return this.orderDatasetByGivenColumns(ds);
         }
     }
@@ -172,8 +230,9 @@ public final class BatchCollect extends SortOperation {
     public Dataset<Row> getCollectedAsDataframe() {
         Dataset<Row> rv;
         if (this.lastRowDs != null) {
-           rv = this.outputDs.union(this.lastRowDs);
-        } else {
+            rv = this.outputDs.union(this.lastRowDs);
+        }
+        else {
             rv = this.outputDs;
         }
         return rv;

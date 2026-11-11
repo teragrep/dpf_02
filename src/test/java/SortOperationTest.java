@@ -1,6 +1,6 @@
 /*
  * Teragrep Batch Collect DPF-02
- * Copyright (C) 2019, 2020, 2021, 2022  Suomen Kanuuna Oy
+ * Copyright (C) 2019-2026 Suomen Kanuuna Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -13,7 +13,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <https://github.com/teragrep/teragrep/blob/main/LICENSE>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  *
  * Additional permission under GNU Affero General Public License version 3
@@ -43,7 +43,6 @@
  * Teragrep, the applicable Commercial License may apply to this file if you as
  * a licensee so wish it.
  */
-
 import com.teragrep.functions.dpf_02.BatchCollect;
 import com.teragrep.functions.dpf_02.SortByClause;
 import org.apache.spark.api.java.function.VoidFunction2;
@@ -71,19 +70,17 @@ import java.util.concurrent.TimeoutException;
 
 public class SortOperationTest {
 
-    private static final StructType testSchema = new StructType(
-            new StructField[]{
-                    new StructField("_time", DataTypes.TimestampType, false, new MetadataBuilder().build()),
-                    new StructField("_raw", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("index", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("sourcetype", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("host", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("source", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("partition", DataTypes.StringType, false, new MetadataBuilder().build()),
-                    new StructField("offset", DataTypes.LongType, false, new MetadataBuilder().build()),
-                    new StructField("IP", DataTypes.StringType, false, new MetadataBuilder().build())
-            }
-    );
+    private static final StructType testSchema = new StructType(new StructField[] {
+            new StructField("_time", DataTypes.TimestampType, false, new MetadataBuilder().build()),
+            new StructField("_raw", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("index", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("sourcetype", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("host", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("source", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("partition", DataTypes.StringType, false, new MetadataBuilder().build()),
+            new StructField("offset", DataTypes.LongType, false, new MetadataBuilder().build()),
+            new StructField("IP", DataTypes.StringType, false, new MetadataBuilder().build())
+    });
 
     @Test
     public void testTwoSortByClauses() {
@@ -115,10 +112,16 @@ public class SortOperationTest {
         List<Row> offset = batchCollect.getCollectedAsDataframe().select("offset").collectAsList();
 
         // should be first sorted by partition and then in those partitions sorted by offset
-        Assertions.assertEquals("[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]",
-                Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
-        Assertions.assertEquals("[0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4]",
-                Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions
+                .assertEquals(
+                        "[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]",
+                        Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray())
+                );
+        Assertions
+                .assertEquals(
+                        "[0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4]",
+                        Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray())
+                );
         Assertions.assertEquals(20, partition.size());
         Assertions.assertEquals(20, offset.size());
     }
@@ -145,7 +148,7 @@ public class SortOperationTest {
         sortByClauses.add(partSbc);
         sortByClauses.add(offSbc);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 20,0, sortByClauses);
+        BatchCollect batchCollect = new BatchCollect("_time", 20, 0, sortByClauses);
 
         createData(batchCollect, sqlContext);
 
@@ -153,10 +156,16 @@ public class SortOperationTest {
         List<Row> offset = batchCollect.getCollectedAsDataframe().select("offset").collectAsList();
 
         // should be first sorted by partition and then in those partitions sorted by offset
-        Assertions.assertEquals("[3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]",
-                Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
-        Assertions.assertEquals("[4, 3, 2, 1, 0, 4, 3, 2, 1, 0, 4, 3, 2, 1, 0, 4, 3, 2, 1, 0]",
-                Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions
+                .assertEquals(
+                        "[3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]",
+                        Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray())
+                );
+        Assertions
+                .assertEquals(
+                        "[4, 3, 2, 1, 0, 4, 3, 2, 1, 0, 4, 3, 2, 1, 0, 4, 3, 2, 1, 0]",
+                        Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray())
+                );
         Assertions.assertEquals(20, partition.size());
         Assertions.assertEquals(20, offset.size());
     }
@@ -183,7 +192,7 @@ public class SortOperationTest {
         sortByClauses.add(partSbc);
         sortByClauses.add(ipSbc);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 20,0, sortByClauses);
+        BatchCollect batchCollect = new BatchCollect("_time", 20, 0, sortByClauses);
 
         createData(batchCollect, sqlContext);
 
@@ -191,12 +200,18 @@ public class SortOperationTest {
         List<Row> ip = batchCollect.getCollectedAsDataframe().select("ip").collectAsList();
 
         // should be first sorted by partition and then in those partitions sorted by IP
-        Assertions.assertEquals("[3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]",
-                Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
-        Assertions.assertEquals("[127.0.0.4, 127.0.0.3, 127.0.0.2, 127.0.0.1, 127.0.0.0, 127.0.0.4, " +
-                        "127.0.0.3, 127.0.0.2, 127.0.0.1, 127.0.0.0, 127.0.0.4, 127.0.0.3, 127.0.0.2, " +
-                        "127.0.0.1, 127.0.0.0, 127.0.0.4, 127.0.0.3, 127.0.0.2, 127.0.0.1, 127.0.0.0]",
-                Arrays.toString(ip.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions
+                .assertEquals(
+                        "[3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]",
+                        Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray())
+                );
+        Assertions
+                .assertEquals(
+                        "[127.0.0.4, 127.0.0.3, 127.0.0.2, 127.0.0.1, 127.0.0.0, 127.0.0.4, "
+                                + "127.0.0.3, 127.0.0.2, 127.0.0.1, 127.0.0.0, 127.0.0.4, 127.0.0.3, 127.0.0.2, "
+                                + "127.0.0.1, 127.0.0.0, 127.0.0.4, 127.0.0.3, 127.0.0.2, 127.0.0.1, 127.0.0.0]",
+                        Arrays.toString(ip.stream().map(r -> r.getAs(0).toString()).toArray())
+                );
 
         Assertions.assertEquals(20, partition.size());
         Assertions.assertEquals(20, ip.size());
@@ -230,7 +245,7 @@ public class SortOperationTest {
         sortByClauses.add(hostSbc);
         sortByClauses.add(offSbc);
 
-        BatchCollect batchCollect = new BatchCollect("_time", 20,0, sortByClauses);
+        BatchCollect batchCollect = new BatchCollect("_time", 20, 0, sortByClauses);
 
         createData(batchCollect, sqlContext);
 
@@ -239,13 +254,22 @@ public class SortOperationTest {
         List<Row> host = batchCollect.getCollectedAsDataframe().select("host").collectAsList();
 
         // should be first sorted by partition and then in those partitions sorted by host and in host sorted by offset
-        Assertions.assertEquals("[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]",
-                Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray()));
-        Assertions.assertEquals("[host_B, host_B, host_A, host_A, host_A, host_B, host_B, host_A, host_A, host_A, " +
-                        "host_B, host_B, host_A, host_A, host_A, host_B, host_B, host_A, host_A, host_A]",
-                Arrays.toString(host.stream().map(r -> r.getAs(0).toString()).toArray()));
-        Assertions.assertEquals("[3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2]",
-                Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray()));
+        Assertions
+                .assertEquals(
+                        "[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]",
+                        Arrays.toString(partition.stream().map(r -> r.getAs(0).toString()).toArray())
+                );
+        Assertions
+                .assertEquals(
+                        "[host_B, host_B, host_A, host_A, host_A, host_B, host_B, host_A, host_A, host_A, "
+                                + "host_B, host_B, host_A, host_A, host_A, host_B, host_B, host_A, host_A, host_A]",
+                        Arrays.toString(host.stream().map(r -> r.getAs(0).toString()).toArray())
+                );
+        Assertions
+                .assertEquals(
+                        "[3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2]",
+                        Arrays.toString(offset.stream().map(r -> r.getAs(0).toString()).toArray())
+                );
 
         Assertions.assertEquals(20, partition.size());
         Assertions.assertEquals(20, offset.size());
@@ -254,8 +278,7 @@ public class SortOperationTest {
 
     private void createData(BatchCollect batchCollect, SQLContext sqlContext) {
         ExpressionEncoder<Row> encoder = RowEncoder.apply(testSchema);
-        MemoryStream<Row> rowMemoryStream =
-                new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
+        MemoryStream<Row> rowMemoryStream = new MemoryStream<>(1, sqlContext, Option.apply(1), encoder);
 
         Dataset<Row> rowDataset = rowMemoryStream.toDF();
         StreamingQuery streamingQuery = Assertions.assertDoesNotThrow(() -> startStream(rowDataset, batchCollect));
@@ -266,30 +289,25 @@ public class SortOperationTest {
             Timestamp time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
             if (run == 3) {
                 // make run 3 to be latest always
-                time = Timestamp.valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L+counter), ZoneOffset.UTC));
+                time = Timestamp
+                        .valueOf(LocalDateTime.ofInstant(Instant.ofEpochSecond(13851486065L + counter), ZoneOffset.UTC));
             }
 
-            rowMemoryStream.addData(
-                    // make rows containing counter as offset and run as partition
-                    makeRows(
-                            time,
-                            "data data",
-                            "topic",
-                            "stream",
-                            counter < 3 ? "host_A" : "host_B",
-                            "input",
-                            String.valueOf(run),
-                            counter,
-                            "127.0.0." + counter,
-                            1
-                    )
-            );
+            rowMemoryStream
+                    .addData(
+                            // make rows containing counter as offset and run as partition
+                            makeRows(
+                                    time, "data data", "topic", "stream", counter < 3 ? "host_A" : "host_B", "input",
+                                    String.valueOf(run), counter, "127.0.0." + counter, 1
+                            )
+                    );
 
             // create 5 events for 4 runs
             if (counter == 4) {
                 run++;
                 counter = 0;
-            } else {
+            }
+            else {
                 counter++;
             }
 
@@ -302,29 +320,21 @@ public class SortOperationTest {
         }
     }
 
-    private Seq<Row> makeRows(Timestamp _time,
-                              String _raw,
-                              String index,
-                              String sourcetype,
-                              String host,
-                              String source,
-                              String partition,
-                              Long offset,
-                              String ip,
-                              long amount) {
+    private Seq<Row> makeRows(
+            Timestamp _time,
+            String _raw,
+            String index,
+            String sourcetype,
+            String host,
+            String source,
+            String partition,
+            Long offset,
+            String ip,
+            long amount
+    ) {
         ArrayList<Row> rowArrayList = new ArrayList<>();
 
-        Row row = RowFactory.create(
-                _time,
-                _raw,
-                index,
-                sourcetype,
-                host,
-                source,
-                partition,
-                offset,
-                ip
-        );
+        Row row = RowFactory.create(_time, _raw, index, sourcetype, host, source, partition, offset, ip);
 
         while (amount > 0) {
             rowArrayList.add(row);
@@ -336,19 +346,13 @@ public class SortOperationTest {
         return rowSeq;
     }
 
-
     private StreamingQuery startStream(Dataset<Row> rowDataset, BatchCollect batchCollect) throws TimeoutException {
-        return rowDataset
-                .writeStream()
-                .foreachBatch(
-                        new VoidFunction2<Dataset<Row>, Long>() {
-                            @Override
-                            public void call(Dataset<Row> batchDF, Long batchId) throws Exception {
-                                batchCollect.collect(batchDF, batchId, Collections.emptyList(), false);
-                            }
-                        }
-                )
-                .outputMode("append")
-                .start();
+        return rowDataset.writeStream().foreachBatch(new VoidFunction2<Dataset<Row>, Long>() {
+
+            @Override
+            public void call(Dataset<Row> batchDF, Long batchId) throws Exception {
+                batchCollect.collect(batchDF, batchId, Collections.emptyList(), false);
+            }
+        }).outputMode("append").start();
     }
 }
