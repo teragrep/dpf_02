@@ -52,6 +52,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 public class ConvertIPStringToInt implements UDF1<Object, Long> {
+
     @Override
     public Long call(Object o) throws Exception {
         String ip = o.toString();
